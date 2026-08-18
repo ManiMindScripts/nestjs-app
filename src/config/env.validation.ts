@@ -19,6 +19,9 @@ export const envValidationSchema = Joi.object({
   DB_SYNCHRONIZE: Joi.boolean().default(false),
   DB_LOGGING: Joi.boolean().default(true),
 
+  ADMIN_EMAIL: Joi.string().email().min(1).required(),
+  ADMIN_PASSWORD: Joi.string().min(8).required(),
+
   JWT_ACCESS_SECRET: Joi.string().min(1).required(),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_SECRET: Joi.string().min(1).required(),
