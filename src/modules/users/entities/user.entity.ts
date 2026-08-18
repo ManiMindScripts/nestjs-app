@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserStatus } from '../../../common/constants/user-status.enum';
+import { PasswordResetToken } from '../../auth/entities/password-reset-token.entity';
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 import { UserRole } from '../../roles/entities/user-role.entity';
 
@@ -49,6 +50,12 @@ export class User {
 
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];
+
+  @OneToMany(
+    () => PasswordResetToken,
+    (passwordResetToken) => passwordResetToken.user,
+  )
+  passwordResetTokens: PasswordResetToken[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

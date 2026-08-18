@@ -5,6 +5,7 @@ export interface AppConfig {
   port: number;
   apiPrefix: string;
   corsOrigin: string;
+  frontendUrl: string;
   logLevel: string;
   swaggerEnabled: boolean;
 }
@@ -17,6 +18,7 @@ export const appConfig = registerAs('app', (): AppConfig => {
     port: parseInt(env.PORT ?? '3000', 10),
     apiPrefix: env.API_PREFIX ?? 'api',
     corsOrigin: env.CORS_ORIGIN ?? 'http://localhost:5173',
+    frontendUrl: env.FRONTEND_URL ?? 'http://localhost:5173',
     logLevel: env.LOG_LEVEL ?? 'info',
     swaggerEnabled: (env.SWAGGER_ENABLED ?? 'true').toLowerCase() === 'true',
   };

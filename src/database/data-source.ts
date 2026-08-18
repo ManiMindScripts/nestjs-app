@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
+import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
 import { RolePermission } from '../modules/permissions/entities/role-permission.entity';
 import { Permission } from '../modules/permissions/entities/permission.entity';
 import { Role } from '../modules/roles/entities/role.entity';
@@ -16,7 +17,15 @@ export default new DataSource({
   username: process.env.DB_USERNAME ?? 'postgres',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME ?? 'my_app',
-  entities: [User, Role, Permission, UserRole, RolePermission, RefreshToken],
+  entities: [
+    User,
+    Role,
+    Permission,
+    UserRole,
+    RolePermission,
+    RefreshToken,
+    PasswordResetToken,
+  ],
   migrations: ['src/database/migrations/*.{ts,js}'],
   namingStrategy: new SnakeCaseNamingStrategy(),
   synchronize: false,

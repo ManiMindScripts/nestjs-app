@@ -11,6 +11,8 @@ export const envValidationSchema = Joi.object({
 
   CORS_ORIGIN: Joi.string().min(1).required(),
 
+  FRONTEND_URL: Joi.string().uri().default('http://localhost:5173'),
+
   DB_HOST: Joi.string().min(1).required(),
   DB_PORT: Joi.number().port().default(5432),
   DB_USERNAME: Joi.string().min(1).required(),
@@ -26,6 +28,13 @@ export const envValidationSchema = Joi.object({
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_SECRET: Joi.string().min(1).required(),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
+  JWT_COOKIE_NAME: Joi.string().min(1).default('refresh_token'),
+  JWT_COOKIE_PATH: Joi.string().allow('').default(''),
+  JWT_COOKIE_SECURE: Joi.boolean().optional(),
+  JWT_COOKIE_SAME_SITE: Joi.string()
+    .valid('lax', 'strict', 'none')
+    .default('lax'),
+  PASSWORD_RESET_TOKEN_TTL: Joi.string().default('30m'),
 
   REDIS_HOST: Joi.string().default('localhost'),
   REDIS_PORT: Joi.number().port().default(6379),
