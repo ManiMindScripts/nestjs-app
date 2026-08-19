@@ -1,20 +1,25 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
 import { Test, TestingModule } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import type { App } from 'supertest/types';
+import { DataSource } from 'typeorm';
 import { AppModule } from './../src/app.module';
 import { MailService } from './../src/modules/auth/mail/mail.service';
+import { User } from './../src/modules/users/entities/user.entity';
 
 jest.setTimeout(60_000);
 
 describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
+  let dataSource: DataSource;
   let capturedResetToken: string | undefined;
+  let createdUserId: string | undefined;
 
   interface AuthResponseBody {
     accessToken: string;
-    user: { email: string };
+    user: { id: string; email: string };
   }
 
   const authBody = (res: request.Response): AuthResponseBody =>
@@ -34,6 +39,8 @@ describe('Auth (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideProvider(ThrottlerStorage)
+      .useValue(new ThrottlerStorageService())
       .overrideProvider(MailService)
       .useValue({
         sendPasswordReset: jest.fn(
@@ -57,9 +64,14 @@ describe('Auth (e2e)', () => {
       }),
     );
     await app.init();
+    dataSource = app.get(DataSource);
   });
 
   afterAll(async () => {
+    // Remove the account this suite registered so repeated runs leave no residue.
+    if (createdUserId) {
+      await dataSource.getRepository(User).delete({ id: createdUserId });
+    }
     await app.close();
   });
 
@@ -75,6 +87,8 @@ describe('Auth (e2e)', () => {
 
     expect(authBody(registerRes).accessToken).toBeDefined();
     expect(authBody(registerRes).user.email).toBe(email);
+    createdUserId = authBody(registerRes).user.id;
+    expect(createdUserId).toBeDefined();
     expect(
       (registerRes.body as { user?: { passwordHash?: string } }).user
         ?.passwordHash,

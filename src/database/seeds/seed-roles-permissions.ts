@@ -147,6 +147,15 @@ async function seedBootstrapAdmin(dataSource: DataSource): Promise<void> {
       }),
     );
     console.log(`+ user ${adminEmail}`);
+  } else {
+    // Converge the bootstrap admin to the configured password when it drifts
+    // (e.g. ADMIN_PASSWORD changed after the account was first seeded).
+    const matches = await argon2.verify(admin.passwordHash, adminPassword);
+    if (!matches) {
+      admin.passwordHash = await argon2.hash(adminPassword);
+      await userRepository.save(admin);
+      console.log(`! updated password for ${adminEmail}`);
+    }
   }
 
   const adminRole = await roleRepository.findOneByOrFail({ name: 'admin' });
