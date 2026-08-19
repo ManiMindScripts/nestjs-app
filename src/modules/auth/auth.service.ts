@@ -7,10 +7,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as argon2 from 'argon2';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { IsNull, Repository, DataSource } from 'typeorm';
 import { UserStatus } from '../../common/constants/user-status.enum';
+import { hashPassword, verifyPassword } from '../../common/utils/password';
 import { JwtConfig } from '../../config/jwt.config';
 import { SafeUser, serializeUser } from '../users/users.serializer';
 import { User } from '../users/entities/user.entity';
@@ -63,7 +63,7 @@ export class AuthService {
       throw new ConflictException('Email is already registered');
     }
 
-    const passwordHash = await argon2.hash(dto.password);
+    const passwordHash = await hashPassword(dto.password);
     const user = await this.usersService.createWithDefaultRole({
       email,
       passwordHash,
@@ -82,7 +82,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const passwordValid = await argon2.verify(user.passwordHash, dto.password);
+    const passwordValid = await verifyPassword(user.passwordHash, dto.password);
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -252,7 +252,7 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    const passwordHash = await argon2.hash(dto.newPassword);
+    const passwordHash = await hashPassword(dto.newPassword);
     await this.usersService.updatePassword(record.user.id, passwordHash);
 
     await this.passwordResetTokenRepository.update(record.id, {

@@ -23,7 +23,7 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'citext', unique: true })
+  @Column({ type: 'citext' })
   email: string;
 
   @Column({ name: 'password_hash', type: 'varchar', length: 255 })

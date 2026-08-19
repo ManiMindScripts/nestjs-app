@@ -16,6 +16,7 @@ import {
 } from '../../common/constants/permissions.enum';
 import { PermissionSubjectValue } from '../../common/constants/permission-subjects';
 import { JwtConfig } from '../../config/jwt.config';
+import { isUniqueViolation } from '../../common/utils/db';
 import { REDIS_CLIENT } from '../../shared/redis/redis.module';
 import { UserRole } from '../roles/entities/user-role.entity';
 import { Permission } from './entities/permission.entity';
@@ -175,11 +176,7 @@ export class PermissionsService {
   }
 
   private handleUniqueViolation(error: unknown, key: string): never {
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      (error as { code?: string }).code === '23505'
-    ) {
+    if (isUniqueViolation(error)) {
       throw new ConflictException(`Permission "${key}" already exists`);
     }
     throw error;

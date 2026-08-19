@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
+import { isUniqueViolation } from '../../common/utils/db';
 import { PermissionsService } from '../permissions/permissions.service';
 import { Permission } from '../permissions/entities/permission.entity';
 import { Role } from './entities/role.entity';
@@ -158,11 +159,7 @@ export class RolesService {
   }
 
   private handleUniqueViolation(error: unknown, key: string): never {
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      (error as { code?: string }).code === '23505'
-    ) {
+    if (isUniqueViolation(error)) {
       throw new ConflictException(`Role "${key}" already exists`);
     }
     throw error;

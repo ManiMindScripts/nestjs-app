@@ -4,8 +4,6 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Redis } from 'ioredis';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -73,9 +71,8 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
     PermissionsModule,
     AuthModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [
-    AppService,
     // Guard order is load-bearing: ThrottlerGuard runs before JwtAuthGuard so
     // floods are rate-limited before any JWT verification work happens.
     // PermissionsGuard runs last, after authentication has resolved req.user.

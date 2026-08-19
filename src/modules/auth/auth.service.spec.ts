@@ -4,8 +4,8 @@ import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
-import * as argon2 from 'argon2';
 import { UserStatus } from '../../common/constants/user-status.enum';
+import { hashPassword } from '../../common/utils/password';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
 import { RefreshToken } from './entities/refresh-token.entity';
@@ -166,7 +166,7 @@ describe('AuthService', () => {
     it('issues a session for valid credentials', async () => {
       usersService.findByEmail.mockResolvedValue({
         ...user,
-        passwordHash: await argon2.hash('Password123'),
+        passwordHash: await hashPassword('Password123'),
       });
       refreshTokenRepository.save.mockResolvedValue({ id: 'rt-1' });
 
@@ -191,7 +191,7 @@ describe('AuthService', () => {
     it('rejects a wrong password', async () => {
       usersService.findByEmail.mockResolvedValue({
         ...user,
-        passwordHash: await argon2.hash('RightPassword123'),
+        passwordHash: await hashPassword('RightPassword123'),
       });
 
       await expect(
@@ -203,7 +203,7 @@ describe('AuthService', () => {
       usersService.findByEmail.mockResolvedValue({
         ...user,
         status: UserStatus.SUSPENDED,
-        passwordHash: await argon2.hash('Password123'),
+        passwordHash: await hashPassword('Password123'),
       });
 
       await expect(

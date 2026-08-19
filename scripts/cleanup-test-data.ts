@@ -7,6 +7,7 @@ const TEST_EMAIL_PATTERNS = [
   'rbac\\_%@example.com',
   'e2e\\_%@example.com',
   'smoke\\_%@example.com',
+  'users\\_%@example.com',
 ] as const;
 
 function hasArg(name: string): boolean {
@@ -18,7 +19,7 @@ function printUsage(): void {
     [
       'Usage: npm run cleanup:test-data [-- --apply] [-- --force]',
       '',
-      'Deletes users created by automated tests (rbac_*, e2e_*, smoke_*) and their',
+      'Deletes users created by automated tests (rbac_*, e2e_*, smoke_*, users_*) and their',
       'cascaded rows (user_roles, refresh_tokens, password_reset_tokens).',
       '',
       '  --apply   actually delete the matched users (default is a dry run)',

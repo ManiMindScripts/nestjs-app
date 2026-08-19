@@ -8,6 +8,14 @@ export interface SafeUser {
   status: string;
   emailVerifiedAt: Date | null;
   createdAt: Date;
+  roles?: { id: string; name: string }[];
+}
+
+export interface PaginatedUsers {
+  items: SafeUser[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export function serializeUser(user: User): SafeUser {
@@ -19,5 +27,13 @@ export function serializeUser(user: User): SafeUser {
     status: user.status,
     emailVerifiedAt: user.emailVerifiedAt,
     createdAt: user.createdAt,
+    ...(user.userRoles?.length
+      ? {
+          roles: user.userRoles.map(({ role }) => ({
+            id: role.id,
+            name: role.name,
+          })),
+        }
+      : {}),
   };
 }

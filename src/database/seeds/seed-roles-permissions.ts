@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import 'dotenv/config';
-import * as argon2 from 'argon2';
 import { DataSource } from 'typeorm';
 import { PermissionAction } from '../../common/constants/permissions.enum';
 import { UserStatus } from '../../common/constants/user-status.enum';
+import { hashPassword, verifyPassword } from '../../common/utils/password';
 import { Permission } from '../../modules/permissions/entities/permission.entity';
 import { RolePermission } from '../../modules/permissions/entities/role-permission.entity';
 import { Role } from '../../modules/roles/entities/role.entity';
@@ -138,7 +138,7 @@ async function seedBootstrapAdmin(dataSource: DataSource): Promise<void> {
   let admin = await userRepository.findOneBy({ email: adminEmail });
 
   if (!admin) {
-    const passwordHash = await argon2.hash(adminPassword);
+    const passwordHash = await hashPassword(adminPassword);
     admin = await userRepository.save(
       userRepository.create({
         email: adminEmail,
@@ -150,9 +150,9 @@ async function seedBootstrapAdmin(dataSource: DataSource): Promise<void> {
   } else {
     // Converge the bootstrap admin to the configured password when it drifts
     // (e.g. ADMIN_PASSWORD changed after the account was first seeded).
-    const matches = await argon2.verify(admin.passwordHash, adminPassword);
+    const matches = await verifyPassword(admin.passwordHash, adminPassword);
     if (!matches) {
-      admin.passwordHash = await argon2.hash(adminPassword);
+      admin.passwordHash = await hashPassword(adminPassword);
       await userRepository.save(admin);
       console.log(`! updated password for ${adminEmail}`);
     }
