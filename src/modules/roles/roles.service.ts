@@ -44,20 +44,26 @@ export class RolesService {
       throw new ConflictException(`Role "${name}" already exists`);
     }
 
-    const role = await this.roleRepository.save(
-      this.roleRepository.create({
-        name,
-        description: dto.description?.trim() || null,
-        isSystem: false,
-      }),
-    );
+    try {
+      const role = await this.roleRepository.save(
+        this.roleRepository.create({
+          name,
+          description: dto.description?.trim() || null,
+          isSystem: false,
+        }),
+      );
 
-    return this.getOrThrow(role.id);
+      return this.getOrThrow(role.id);
+    } catch (error) {
+      this.handleUniqueViolation(error, name);
+    }
   }
 
   async update(id: string, dto: UpdateRoleDto): Promise<Role> {
     const role = await this.getOrThrow(id);
     this.assertMutable(role, 'update');
+
+    let currentName = role.name;
 
     if (dto.name !== undefined) {
       const name = dto.name.trim();
@@ -66,6 +72,7 @@ export class RolesService {
           throw new ConflictException(`Role "${name}" already exists`);
         }
         role.name = name;
+        currentName = name;
       }
     }
 
@@ -73,7 +80,11 @@ export class RolesService {
       role.description = dto.description?.trim() || null;
     }
 
-    await this.roleRepository.save(role);
+    try {
+      await this.roleRepository.save(role);
+    } catch (error) {
+      this.handleUniqueViolation(error, currentName);
+    }
     return this.getOrThrow(id);
   }
 
@@ -81,10 +92,12 @@ export class RolesService {
     const role = await this.getOrThrow(id);
     this.assertMutable(role, 'delete');
 
-    // Invalidate before the delete: the user_roles cascade empties the
-    // link table afterwards, leaving nothing to match against.
-    await this.permissionsService.invalidateUsersWithRole(id);
+    // Capture affected users BEFORE the delete (user_roles cascade-removes the
+    // link rows afterwards), then invalidate AFTER the delete so a concurrent
+    // re-cache reflects the removed role instead of re-introducing stale rules.
+    const userIds = await this.permissionsService.findUserIdsWithRole(id);
     await this.roleRepository.delete(id);
+    await this.permissionsService.invalidateUsers(userIds);
   }
 
   async setPermissions(id: string, permissionIds: string[]): Promise<Role> {
@@ -123,7 +136,8 @@ export class RolesService {
       }
     });
 
-    await this.permissionsService.invalidateUsersWithRole(role.id);
+    const userIds = await this.permissionsService.findUserIdsWithRole(role.id);
+    await this.permissionsService.invalidateUsers(userIds);
     return this.getOrThrow(id);
   }
 
@@ -141,5 +155,16 @@ export class RolesService {
         `System role "${role.name}" cannot be ${action}`,
       );
     }
+  }
+
+  private handleUniqueViolation(error: unknown, key: string): never {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error as { code?: string }).code === '23505'
+    ) {
+      throw new ConflictException(`Role "${key}" already exists`);
+    }
+    throw error;
   }
 }

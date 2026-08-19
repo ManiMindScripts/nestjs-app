@@ -27,7 +27,10 @@ describe('RolesService', () => {
     delete: jest.Mock;
   };
   let rolePermissionRepository: Record<string, jest.Mock>;
-  let permissionsService: { invalidateUsersWithRole: jest.Mock };
+  let permissionsService: {
+    findUserIdsWithRole: jest.Mock;
+    invalidateUsers: jest.Mock;
+  };
   let manager: {
     find: jest.Mock;
     delete: jest.Mock;
@@ -47,7 +50,10 @@ describe('RolesService', () => {
     };
 
     rolePermissionRepository = {};
-    permissionsService = { invalidateUsersWithRole: jest.fn() };
+    permissionsService = {
+      findUserIdsWithRole: jest.fn(),
+      invalidateUsers: jest.fn(),
+    };
 
     manager = {
       find: jest.fn(),
@@ -95,6 +101,17 @@ describe('RolesService', () => {
     );
   });
 
+  it('maps a concurrent unique-violation on create to 409', async () => {
+    roleRepository.existsBy.mockResolvedValue(false);
+    roleRepository.save.mockRejectedValue(
+      Object.assign(new Error('duplicate key value'), { code: '23505' }),
+    );
+
+    await expect(service.create({ name: 'editor' })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
   it('rejects updating a system role with 403', async () => {
     roleRepository.findOne.mockResolvedValue(role({ isSystem: true }));
 
@@ -112,15 +129,20 @@ describe('RolesService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('removes a role after invalidating its users', async () => {
+  it('removes a role, invalidating affected users only after the delete', async () => {
     roleRepository.findOne.mockResolvedValue(role());
+    permissionsService.findUserIdsWithRole.mockResolvedValue(['a', 'b']);
 
     await service.remove('role-1');
 
-    expect(permissionsService.invalidateUsersWithRole).toHaveBeenCalledWith(
+    expect(permissionsService.findUserIdsWithRole).toHaveBeenCalledWith(
       'role-1',
     );
     expect(roleRepository.delete).toHaveBeenCalledWith('role-1');
+    expect(permissionsService.invalidateUsers).toHaveBeenCalledWith(['a', 'b']);
+    expect(roleRepository.delete.mock.invocationCallOrder[0]).toBeLessThan(
+      permissionsService.invalidateUsers.mock.invocationCallOrder[0],
+    );
   });
 
   it('rejects deleting a system role with 403', async () => {
@@ -152,6 +174,7 @@ describe('RolesService', () => {
   it('replaces the permission set and invalidates affected users', async () => {
     roleRepository.findOne.mockResolvedValue(role());
     manager.find.mockResolvedValue([{ id: 'p-1' }, { id: 'p-2' }]);
+    permissionsService.findUserIdsWithRole.mockResolvedValue(['a']);
 
     await service.setPermissions('role-1', ['p-1', 'p-2', 'p-1']);
 
@@ -165,8 +188,9 @@ describe('RolesService', () => {
         expect.objectContaining({ roleId: 'role-1', permissionId: 'p-2' }),
       ]),
     );
-    expect(permissionsService.invalidateUsersWithRole).toHaveBeenCalledWith(
+    expect(permissionsService.findUserIdsWithRole).toHaveBeenCalledWith(
       'role-1',
     );
+    expect(permissionsService.invalidateUsers).toHaveBeenCalledWith(['a']);
   });
 });

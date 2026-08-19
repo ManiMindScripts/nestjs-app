@@ -14,6 +14,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
+  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
@@ -57,7 +58,7 @@ export class PermissionsController {
     subject: PermissionSubject.PERMISSION,
   })
   @ApiOperation({ summary: 'Create a permission (admin)' })
-  @ApiOkResponse({ description: 'Permission created' })
+  @ApiCreatedResponse({ description: 'Permission created' })
   @ApiConflictResponse({ description: 'Permission already exists' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
   async create(@Body() dto: CreatePermissionDto): Promise<SafePermission> {

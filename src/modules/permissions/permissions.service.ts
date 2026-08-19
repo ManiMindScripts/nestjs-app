@@ -64,15 +64,15 @@ export class PermissionsService {
     await this.safeDel(this.cacheKey(userId));
   }
 
-  async invalidateUsersWithRole(roleId: string): Promise<void> {
+  async findUserIdsWithRole(roleId: string): Promise<string[]> {
     const rows = await this.dataSource.getRepository(UserRole).find({
       where: { roleId },
       select: { userId: true },
     });
-    await this.safeDelBatch(rows.map((row) => this.cacheKey(row.userId)));
+    return rows.map((row) => row.userId);
   }
 
-  async invalidateUsersWithPermission(permissionId: string): Promise<void> {
+  async findUserIdsWithPermission(permissionId: string): Promise<string[]> {
     const rows = await this.dataSource
       .getRepository(UserRole)
       .createQueryBuilder('ur')
@@ -81,7 +81,11 @@ export class PermissionsService {
       .distinct(true)
       .where('rp.permission_id = :permissionId', { permissionId })
       .getRawMany<{ userId: string }>();
-    await this.safeDelBatch(rows.map((row) => this.cacheKey(row.userId)));
+    return rows.map((row) => row.userId);
+  }
+
+  async invalidateUsers(userIds: string[]): Promise<void> {
+    await this.safeDelBatch(userIds.map((userId) => this.cacheKey(userId)));
   }
 
   async findAllPermissions(): Promise<Permission[]> {
@@ -129,10 +133,13 @@ export class PermissionsService {
       throw new BadRequestException('Permission not found');
     }
 
-    // The join through role_permissions must be read before the delete,
-    // otherwise the cascade leaves nothing to match against.
-    await this.invalidateUsersWithPermission(id);
+    // Capture affected users BEFORE the delete (the join through
+    // role_permissions is gone afterwards), then invalidate AFTER the delete
+    // so a concurrent re-cache reflects the removed permission instead of
+    // re-introducing stale rules.
+    const userIds = await this.findUserIdsWithPermission(id);
     await this.dataSource.getRepository(Permission).delete(id);
+    await this.invalidateUsers(userIds);
   }
 
   private async loadPermissionRules(userId: string): Promise<PermissionRule[]> {

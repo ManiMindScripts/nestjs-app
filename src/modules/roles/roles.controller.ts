@@ -15,6 +15,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
+  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
@@ -59,7 +60,7 @@ export class RolesController {
     subject: PermissionSubject.ROLE,
   })
   @ApiOperation({ summary: 'Create a new role (admin)' })
-  @ApiOkResponse({ description: 'Role created' })
+  @ApiCreatedResponse({ description: 'Role created' })
   @ApiConflictResponse({ description: 'Role name already exists' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
   async create(@Body() dto: CreateRoleDto): Promise<SafeRole> {

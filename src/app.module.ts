@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Redis } from 'ioredis';
 import { AppController } from './app.controller';
@@ -22,6 +21,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
 import { LoggerModule } from './shared/logger/logger.module';
 import { RedisModule, REDIS_CLIENT } from './shared/redis/redis.module';
+import { ResilientThrottlerStorage } from './shared/throttler/resilient-throttler-storage';
 import { SnakeCaseNamingStrategy } from './database/naming-strategy';
 
 @Module({
@@ -65,7 +65,7 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
             limit: configService.getOrThrow<number>('THROTTLE_LIMIT'),
           },
         ],
-        storage: new ThrottlerStorageRedisService(redisClient),
+        storage: new ResilientThrottlerStorage(redisClient),
       }),
     }),
     UsersModule,

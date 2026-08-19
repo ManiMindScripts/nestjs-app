@@ -137,15 +137,35 @@ describe('PermissionsService', () => {
       expect(redis.del).toHaveBeenCalledWith(CACHE_KEY);
     });
 
-    it('deletes cache keys for every user holding a role', async () => {
+    it('finds every user id holding a role', async () => {
       userRoleRepo.find.mockResolvedValue([{ userId: 'a' }, { userId: 'b' }]);
+
+      await expect(service.findUserIdsWithRole('role-1')).resolves.toEqual([
+        'a',
+        'b',
+      ]);
+    });
+
+    it('finds distinct user ids reachable via a permission', async () => {
+      loadQb.getRawMany.mockResolvedValue([{ userId: 'a' }]);
+
+      await expect(
+        service.findUserIdsWithPermission('permission-1'),
+      ).resolves.toEqual(['a']);
+      expect(loadQb.where).toHaveBeenCalledWith(
+        'rp.permission_id = :permissionId',
+        { permissionId: 'permission-1' },
+      );
+    });
+
+    it('deletes cache keys for the given users in one pipeline', async () => {
       const pipeline = {
         del: jest.fn(),
         exec: jest.fn().mockResolvedValue([]),
       };
       redis.pipeline.mockReturnValue(pipeline);
 
-      await service.invalidateUsersWithRole('role-1');
+      await service.invalidateUsers(['a', 'b']);
 
       expect(pipeline.del).toHaveBeenCalledTimes(2);
       expect(pipeline.del).toHaveBeenCalledWith('rbac:perms:a');
@@ -153,29 +173,10 @@ describe('PermissionsService', () => {
       expect(pipeline.exec).toHaveBeenCalled();
     });
 
-    it('does nothing when no users hold the role', async () => {
-      userRoleRepo.find.mockResolvedValue([]);
-
-      await service.invalidateUsersWithRole('role-1');
+    it('does nothing when no users are given', async () => {
+      await service.invalidateUsers([]);
 
       expect(redis.pipeline).not.toHaveBeenCalled();
-    });
-
-    it('deletes cache keys for users reachable via a permission', async () => {
-      loadQb.getRawMany.mockResolvedValue([{ userId: 'a' }]);
-      const pipeline = {
-        del: jest.fn(),
-        exec: jest.fn().mockResolvedValue([]),
-      };
-      redis.pipeline.mockReturnValue(pipeline);
-
-      await service.invalidateUsersWithPermission('permission-1');
-
-      expect(loadQb.where).toHaveBeenCalledWith(
-        'rp.permission_id = :permissionId',
-        { permissionId: 'permission-1' },
-      );
-      expect(pipeline.del).toHaveBeenCalledWith('rbac:perms:a');
     });
   });
 
@@ -214,15 +215,25 @@ describe('PermissionsService', () => {
 
     it('removes a permission after invalidating affected users', async () => {
       permissionRepo.findOneBy.mockResolvedValue({ id: 'p-1' });
-      const invalidationSpy = jest
-        .spyOn(service, 'invalidateUsersWithPermission')
+      const userIdsSpy = jest
+        .spyOn(service, 'findUserIdsWithPermission')
+        .mockResolvedValue(['a']);
+      const invalidateSpy = jest
+        .spyOn(service, 'invalidateUsers')
         .mockResolvedValue(undefined);
 
       await service.removePermission('p-1');
 
-      expect(invalidationSpy).toHaveBeenCalledWith('p-1');
       expect(permissionRepo.delete).toHaveBeenCalledWith('p-1');
-      invalidationSpy.mockRestore();
+      expect(invalidateSpy).toHaveBeenCalledWith(['a']);
+      expect(permissionRepo.delete.mock.invocationCallOrder[0]).toBeLessThan(
+        invalidateSpy.mock.invocationCallOrder[0],
+      );
+      expect(userIdsSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        permissionRepo.delete.mock.invocationCallOrder[0],
+      );
+      userIdsSpy.mockRestore();
+      invalidateSpy.mockRestore();
     });
   });
 });
