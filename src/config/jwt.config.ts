@@ -26,13 +26,18 @@ export const jwtConfig = registerAs('jwt', (): JwtConfig => {
   const refreshExpiresIn = env.JWT_REFRESH_EXPIRES_IN ?? '7d';
   const resetTokenTtl = env.PASSWORD_RESET_TOKEN_TTL ?? '30m';
 
+  const accessSecret = env.JWT_ACCESS_SECRET;
+  if (!accessSecret) {
+    throw new Error('JWT_ACCESS_SECRET is not configured');
+  }
+
   const cookieSecure =
     env.JWT_COOKIE_SECURE === undefined
       ? nodeEnv === 'production'
       : env.JWT_COOKIE_SECURE.toLowerCase() === 'true';
 
   return {
-    accessSecret: env.JWT_ACCESS_SECRET ?? 'change_me_access',
+    accessSecret,
     accessExpiresIn,
     accessExpiresInMs: parseDurationToMs(accessExpiresIn),
     refreshExpiresIn,

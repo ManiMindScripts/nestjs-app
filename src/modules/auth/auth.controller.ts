@@ -143,6 +143,7 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle(AUTH_ENDPOINT_THROTTLE)
   @ApiOperation({
     summary:
       'Set a new password with a reset token. Revokes all active sessions for the user.',

@@ -24,9 +24,8 @@ export const envValidationSchema = Joi.object({
   ADMIN_EMAIL: Joi.string().email().min(1).required(),
   ADMIN_PASSWORD: Joi.string().min(8).required(),
 
-  JWT_ACCESS_SECRET: Joi.string().min(1).required(),
+  JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
-  JWT_REFRESH_SECRET: Joi.string().min(1).required(),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
   JWT_COOKIE_NAME: Joi.string().min(1).default('refresh_token'),
   JWT_COOKIE_PATH: Joi.string().allow('').default(''),
@@ -42,8 +41,6 @@ export const envValidationSchema = Joi.object({
 
   THROTTLE_TTL: Joi.number().integer().positive().default(60),
   THROTTLE_LIMIT: Joi.number().integer().positive().default(100),
-
-  BULL_PREFIX: Joi.string().default('my_app_queue'),
 
   LOG_LEVEL: Joi.string()
     .valid('error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly')

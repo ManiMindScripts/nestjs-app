@@ -12,14 +12,20 @@ export interface AppConfig {
 
 export const appConfig = registerAs('app', (): AppConfig => {
   const env = process.env;
+  const nodeEnv = env.NODE_ENV as AppConfig['nodeEnv'];
+
+  const swaggerOverride = env.SWAGGER_ENABLED;
+  const swaggerEnabled = swaggerOverride
+    ? swaggerOverride.toLowerCase() === 'true'
+    : nodeEnv !== 'production';
 
   return {
-    nodeEnv: env.NODE_ENV as AppConfig['nodeEnv'],
+    nodeEnv,
     port: parseInt(env.PORT ?? '3000', 10),
     apiPrefix: env.API_PREFIX ?? 'api',
     corsOrigin: env.CORS_ORIGIN ?? 'http://localhost:5173',
     frontendUrl: env.FRONTEND_URL ?? 'http://localhost:5173',
     logLevel: env.LOG_LEVEL ?? 'info',
-    swaggerEnabled: (env.SWAGGER_ENABLED ?? 'true').toLowerCase() === 'true',
+    swaggerEnabled,
   };
 });
