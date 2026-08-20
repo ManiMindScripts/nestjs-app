@@ -37,14 +37,21 @@ export class NotificationsGateway
   private readonly logger = new Logger(NotificationsGateway.name);
 
   @WebSocketServer()
-  private readonly server: Server;
+  private readonly server!: Server;
 
-  constructor(private readonly permissionsService: PermissionsService) {}
+  constructor(
+    private readonly permissionsService: PermissionsService,
+    private readonly wsJwtGuard: WsJwtGuard,
+  ) {}
 
-  @UseGuards(WsJwtGuard)
+  // Nest does not run guards on handleConnection, so authenticate is invoked
+  // directly here; message handlers below rely on the same guard via @UseGuards.
   async handleConnection(
     @ConnectedSocket() socket: AuthedSocket,
   ): Promise<void> {
+    if (!(await this.wsJwtGuard.authenticate(socket))) {
+      return;
+    }
     await socket.join(userRoom(socket.data.user.id));
     this.logger.log(
       `WS connected socket=${socket.id} userId=${socket.data.user.id}`,

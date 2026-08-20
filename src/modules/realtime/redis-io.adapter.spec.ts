@@ -10,7 +10,7 @@ describe('RedisIoAdapter', () => {
   let pubClient: ClientMock;
   let subClient: ClientMock;
 
-  const makeClient = (): ClientMock => ({
+  const makeClient = (status = 'connecting'): ClientMock => ({
     pSubscribe: jest.fn(),
     subscribe: jest.fn(),
     pUnsubscribe: jest.fn(),
@@ -24,7 +24,7 @@ describe('RedisIoAdapter', () => {
     disconnect: jest.fn(),
     ping: jest.fn().mockResolvedValue('PONG'),
     duplicate: jest.fn(),
-    status: 'ready',
+    status,
   });
 
   const app = (): { get: (token: unknown) => unknown } => ({
@@ -43,6 +43,10 @@ describe('RedisIoAdapter', () => {
     pubClient.duplicate.mockReturnValue(subClient);
     redisClient = makeClient();
     redisClient.duplicate.mockReturnValue(pubClient);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   const createAdapter = (): RedisIoAdapter =>
@@ -80,5 +84,22 @@ describe('RedisIoAdapter', () => {
       'ready',
       expect.any(Function),
     );
+  });
+
+  it('schedules a short retry instead of waiting for ready when already connected', async () => {
+    jest.useFakeTimers();
+    redisClient.status = 'ready';
+    pubClient.ping.mockRejectedValue(new Error('ECONNREFUSED'));
+    subClient.ping.mockRejectedValue(new Error('ECONNREFUSED'));
+    const adapter = createAdapter();
+    const server = new Server();
+
+    await adapter.attachRedisAdapter(server);
+
+    expect(adapterStatus.isDegraded).toBe(true);
+    expect(redisClient.once).not.toHaveBeenCalled();
+    // Exactly one pending timer: the 500ms retry (the ping race timeout is
+    // cleared on failure).
+    expect(jest.getTimerCount()).toBe(1);
   });
 });

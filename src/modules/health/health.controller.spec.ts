@@ -25,6 +25,7 @@ describe('HealthController', () => {
   it('reports ok when every dependency is healthy', async () => {
     dataSource.query.mockResolvedValue([{ '?column?': 1 }]);
     redis.ping.mockResolvedValue('PONG');
+    adapterStatus.markAttached();
 
     const body = await controller.check(response as unknown as Response);
 
@@ -50,6 +51,23 @@ describe('HealthController', () => {
       }),
     );
     expect(body.redisAdapter).toHaveProperty('since');
+    expect(response.status).toHaveBeenCalledWith(
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
+  });
+
+  it('returns 503 when the redis IO adapter is pending attachment', async () => {
+    dataSource.query.mockResolvedValue([{ '?column?': 1 }]);
+    redis.ping.mockResolvedValue('PONG');
+
+    const body = await controller.check(response as unknown as Response);
+
+    expect(body.status).toBe('degraded');
+    expect(body.redisAdapter).toEqual({
+      status: 'pending',
+      reason: null,
+      since: null,
+    });
     expect(response.status).toHaveBeenCalledWith(
       HttpStatus.SERVICE_UNAVAILABLE,
     );

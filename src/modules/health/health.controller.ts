@@ -17,7 +17,11 @@ interface ProbeResult {
 
 type RedisAdapterProbe =
   | { status: 'ok' }
-  | { status: 'degraded'; reason: string | null; since: string | null };
+  | {
+      status: 'degraded' | 'pending';
+      reason: string | null;
+      since: string | null;
+    };
 
 interface HealthResponse {
   status: 'ok' | 'degraded';
@@ -45,18 +49,20 @@ export class HealthController {
   ): Promise<HealthResponse> {
     const db = await this.probe(() => this.dataSource.query('SELECT 1'));
     const redis = await this.probe(() => this.redis.ping());
-    const redisAdapter: RedisAdapterProbe = this.adapterStatus.isDegraded
-      ? {
-          status: 'degraded',
-          reason: this.adapterStatus.reason,
-          since: this.adapterStatus.since,
-        }
-      : { status: 'ok' };
+    const redisAdapter: RedisAdapterProbe = this.adapterStatus.isAttached
+      ? { status: 'ok' }
+      : this.adapterStatus.isDegraded
+        ? {
+            status: 'degraded',
+            reason: this.adapterStatus.reason,
+            since: this.adapterStatus.since,
+          }
+        : { status: 'pending', reason: null, since: null };
 
     const degraded =
       db.status === 'down' ||
       redis.status === 'down' ||
-      redisAdapter.status === 'degraded';
+      redisAdapter.status !== 'ok';
     if (degraded) {
       response.status(HttpStatus.SERVICE_UNAVAILABLE);
     }

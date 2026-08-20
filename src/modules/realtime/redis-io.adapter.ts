@@ -10,6 +10,7 @@ import { RealtimeAdapterStatus } from './realtime-adapter.status';
 
 const ADAPTER_PING_TIMEOUT_MS = 2_000;
 const CONNECT_RATE_WINDOW_SECONDS = 60;
+const RETRY_DELAY_MS = 500;
 
 export class RedisIoAdapter extends IoAdapter {
   private readonly logger = new Logger(RedisIoAdapter.name);
@@ -17,6 +18,8 @@ export class RedisIoAdapter extends IoAdapter {
   private readonly redisClient: Redis;
   private readonly adapterStatus: RealtimeAdapterStatus;
   private redisAttached = false;
+  private pubClient: Redis | null = null;
+  private subClient: Redis | null = null;
 
   constructor(
     app: INestApplicationContext,
@@ -28,12 +31,17 @@ export class RedisIoAdapter extends IoAdapter {
     this.adapterStatus = app.get<RealtimeAdapterStatus>(RealtimeAdapterStatus);
   }
 
+  create(port: number, options?: ServerOptions): Server {
+    const server = super.create(port, options);
+    this.attachConnectRateLimit(server);
+    return server;
+  }
+
   createIOServer(port: number, options?: ServerOptions): Server {
     const server = super.createIOServer(port, {
       ...options,
       cors: this.corsOptions,
     }) as Server;
-    this.attachConnectRateLimit(server);
     void this.attachRedisAdapter(server);
     return server;
   }
@@ -53,17 +61,22 @@ export class RedisIoAdapter extends IoAdapter {
       return;
     }
 
+    let pingTimeout: NodeJS.Timeout | undefined;
+    const timedOut = new Promise<never>((_, reject) => {
+      pingTimeout = setTimeout(
+        () => reject(new Error('Redis adapter ping timed out')),
+        ADAPTER_PING_TIMEOUT_MS,
+      );
+    });
+
     try {
       await Promise.race([
         Promise.all([pubClient.ping(), subClient.ping()]),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error('Redis adapter ping timed out')),
-            ADAPTER_PING_TIMEOUT_MS,
-          ),
-        ),
+        timedOut,
       ]);
+      clearTimeout(pingTimeout);
     } catch (error) {
+      clearTimeout(pingTimeout);
       pubClient.disconnect();
       subClient.disconnect();
       this.degrade(server, error);
@@ -71,9 +84,23 @@ export class RedisIoAdapter extends IoAdapter {
     }
 
     server.adapter(createAdapter(pubClient, subClient));
+    this.pubClient = pubClient;
+    this.subClient = subClient;
     this.redisAttached = true;
-    this.adapterStatus.markHealthy();
+    this.adapterStatus.markAttached();
     this.logger.log('Redis IO adapter attached');
+  }
+
+  override async dispose(): Promise<void> {
+    if (this.pubClient) {
+      this.pubClient.disconnect();
+      this.pubClient = null;
+    }
+    if (this.subClient) {
+      this.subClient.disconnect();
+      this.subClient = null;
+    }
+    await super.dispose();
   }
 
   private attachConnectRateLimit(server: Server): void {
@@ -118,6 +145,12 @@ export class RedisIoAdapter extends IoAdapter {
       `Redis IO adapter degraded; using in-memory adapter. Cross-instance events will not work. Reason: ${reason}`,
     );
 
+    if (this.redisClient.status === 'ready') {
+      // 'ready' was already emitted before a listener could be attached, so
+      // retry shortly instead of waiting for an event that will not come.
+      setTimeout(() => void this.attachRedisAdapter(server), RETRY_DELAY_MS);
+      return;
+    }
     this.redisClient.once('ready', () => {
       this.logger.log('Redis ready; retrying IO adapter attachment');
       void this.attachRedisAdapter(server);
