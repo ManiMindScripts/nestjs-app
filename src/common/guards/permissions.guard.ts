@@ -1,12 +1,12 @@
 import {
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { REQUIRED_PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
+import { assertPermissionRules } from '../casl/assert-permission-rules';
 import type { PermissionRule } from '../constants/permissions.enum';
 import { PermissionsService } from '../../modules/permissions/permissions.service';
 import type { User } from '../../modules/users/entities/user.entity';
@@ -39,10 +39,7 @@ export class PermissionsGuard implements CanActivate {
     // is missing. Combine rules deliberately — never expect OR (any-of)
     // behavior from this guard.
     const ability = await this.permissionsService.getAbilityForUser(user.id);
-
-    if (rules.some((rule) => !ability.can(rule.action, rule.subject))) {
-      throw new ForbiddenException('Insufficient permissions');
-    }
+    assertPermissionRules(ability, rules);
 
     return true;
   }

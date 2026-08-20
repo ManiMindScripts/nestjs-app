@@ -8,6 +8,9 @@ import helmet from 'helmet';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppModule } from './app.module';
 import { AppConfig } from './config/app.config';
+import { buildCorsOptions } from './config/cors.config';
+import { validationPipeOptions } from './common/pipes/validation-pipe-options';
+import { RedisIoAdapter } from './modules/realtime/redis-io.adapter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -17,24 +20,14 @@ async function bootstrap(): Promise<void> {
   const appConfig = configService.getOrThrow<AppConfig>('app');
 
   app.setGlobalPrefix(appConfig.apiPrefix);
-  app.enableCors({
-    origin: appConfig.corsOrigin.split(',').map((origin) => origin.trim()),
-    credentials: true,
-  });
+  const corsOptions = buildCorsOptions(appConfig.corsOrigin);
+  app.enableCors(corsOptions);
+  app.useWebSocketAdapter(new RedisIoAdapter(app, corsOptions));
   app.use(helmet());
   app.use(compression());
   app.use(cookieParser());
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
+  app.useGlobalPipes(new ValidationPipe(validationPipeOptions));
 
   if (appConfig.swaggerEnabled) {
     const swaggerConfig = new DocumentBuilder()

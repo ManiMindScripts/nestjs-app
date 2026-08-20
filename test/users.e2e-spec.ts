@@ -6,6 +6,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types';
 import { DataSource, In } from 'typeorm';
 import { AppModule } from './../src/app.module';
+import { validationPipeOptions } from './../src/common/pipes/validation-pipe-options';
 import { Role } from './../src/modules/roles/entities/role.entity';
 import { UserRole } from './../src/modules/roles/entities/user-role.entity';
 import { User } from './../src/modules/users/entities/user.entity';
@@ -116,14 +117,7 @@ describe('Users admin CRUD (e2e)', () => {
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
     app.use(cookieParser());
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true,
-        forbidNonWhitelisted: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
-    );
+    app.useGlobalPipes(new ValidationPipe(validationPipeOptions));
     await app.init();
     dataSource = app.get(DataSource);
 

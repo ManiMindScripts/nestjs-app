@@ -42,6 +42,8 @@ export const envValidationSchema = Joi.object({
   THROTTLE_TTL: Joi.number().integer().positive().default(60),
   THROTTLE_LIMIT: Joi.number().integer().positive().default(100),
 
+  WS_CONNECT_RATE_LIMIT: Joi.number().integer().positive().default(20),
+
   LOG_LEVEL: Joi.string()
     .valid('error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly')
     .default('info'),

@@ -2,10 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { AccessTokenIdentityService } from '../../../common/auth/access-token-identity.service';
 import { JwtConfig } from '../../../config/jwt.config';
-import { UserStatus } from '../../../common/constants/user-status.enum';
 import { User } from '../../users/entities/user.entity';
-import { UsersService } from '../../users/users.service';
 
 export interface JwtPayload {
   sub: string;
@@ -16,7 +15,7 @@ export interface JwtPayload {
 export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     configService: ConfigService,
-    private readonly usersService: UsersService,
+    private readonly accessTokenIdentity: AccessTokenIdentityService,
   ) {
     const jwtConfig = configService.getOrThrow<JwtConfig>('jwt');
 
@@ -32,12 +31,8 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt') {
       return null;
     }
 
-    const user = await this.usersService.findById(payload.sub);
-
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      return null;
-    }
-
-    return user;
+    // Shares the active-user resolution with the WS path (WsJwtGuard) so REST
+    // and sockets can never drift apart on what a valid identity is.
+    return this.accessTokenIdentity.findActiveUserById(payload.sub);
   }
 }

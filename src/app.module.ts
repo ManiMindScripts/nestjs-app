@@ -14,7 +14,9 @@ import { envValidationSchema } from './config/env.validation';
 import { jwtConfig } from './config/jwt.config';
 import { redisConfig } from './config/redis.config';
 import { AuthModule } from './modules/auth/auth.module';
+import { HealthModule } from './modules/health/health.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
 import { LoggerModule } from './shared/logger/logger.module';
@@ -70,6 +72,8 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
     RolesModule,
     PermissionsModule,
     AuthModule,
+    RealtimeModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [

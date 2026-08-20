@@ -6,6 +6,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 import { AppModule } from './../src/app.module';
+import { validationPipeOptions } from './../src/common/pipes/validation-pipe-options';
 import { MailService } from './../src/modules/auth/mail/mail.service';
 import { User } from './../src/modules/users/entities/user.entity';
 
@@ -55,14 +56,7 @@ describe('Auth (e2e)', () => {
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
     app.use(cookieParser());
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true,
-        forbidNonWhitelisted: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
-    );
+    app.useGlobalPipes(new ValidationPipe(validationPipeOptions));
     await app.init();
     dataSource = app.get(DataSource);
   });
