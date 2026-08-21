@@ -16,6 +16,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -35,6 +36,9 @@ interface AuthResponse {
 }
 
 const AUTH_ENDPOINT_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
+const RATE_LIMITED = {
+  description: 'Rate limit exceeded (5 requests per minute per IP)',
+};
 
 @ApiTags('auth')
 @Controller('auth')
@@ -51,6 +55,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a new account (auto-logs in)' })
   @ApiCreatedResponse({ description: 'Account created, session established' })
   @ApiBadRequestResponse({ description: 'Validation failed or email taken' })
+  @ApiTooManyRequestsResponse(RATE_LIMITED)
   async register(
     @Body() dto: RegisterDto,
     @Req() request: Request,
@@ -71,6 +76,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Log in and establish a session' })
   @ApiOkResponse({ description: 'Authenticated' })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
+  @ApiTooManyRequestsResponse(RATE_LIMITED)
   async login(
     @Body() dto: LoginDto,
     @Req() request: Request,
@@ -95,6 +101,7 @@ export class AuthController {
   })
   @ApiOkResponse({ description: 'New access token issued' })
   @ApiUnauthorizedResponse({ description: 'Invalid or revoked refresh token' })
+  @ApiTooManyRequestsResponse(RATE_LIMITED)
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
@@ -133,6 +140,7 @@ export class AuthController {
       'Request a password reset link. Always returns 200 to avoid account enumeration.',
   })
   @ApiOkResponse({ description: 'Reset link sent if the email exists' })
+  @ApiTooManyRequestsResponse(RATE_LIMITED)
   async forgotPassword(
     @Body() dto: ForgotPasswordDto,
     @Req() request: Request,
@@ -150,6 +158,7 @@ export class AuthController {
   })
   @ApiNoContentResponse({ description: 'Password updated' })
   @ApiBadRequestResponse({ description: 'Invalid or expired reset token' })
+  @ApiTooManyRequestsResponse(RATE_LIMITED)
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     await this.authService.resetPassword(dto);
   }

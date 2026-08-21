@@ -4,11 +4,18 @@ import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { UserStatus } from '../../common/constants/user-status.enum';
 import { hashPassword } from '../../common/utils/password';
+import { JwtService } from '@nestjs/jwt';
+import { MailService } from './mail/mail.service';
 import { User } from '../users/entities/user.entity';
+import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
+import { DataSource } from 'typeorm';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { Repository } from 'typeorm';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -103,13 +110,13 @@ describe('AuthService', () => {
     configService = { getOrThrow: jest.fn().mockReturnValue(jwtConfigMock) };
 
     service = new AuthService(
-      refreshTokenRepository,
-      passwordResetTokenRepository,
-      dataSource,
-      usersService,
-      jwtService,
-      mailService,
-      configService,
+      refreshTokenRepository as unknown as Repository<RefreshToken>,
+      passwordResetTokenRepository as unknown as Repository<PasswordResetToken>,
+      dataSource as unknown as DataSource,
+      usersService as unknown as UsersService,
+      jwtService as unknown as JwtService,
+      mailService as unknown as MailService,
+      configService as unknown as ConfigService,
     );
   });
 
@@ -147,7 +154,7 @@ describe('AuthService', () => {
           refreshToken: expect.any(String),
         }),
       );
-      expect(result.user.passwordHash).toBeUndefined();
+      expect(result.user).not.toHaveProperty('passwordHash');
     });
 
     it('rejects a duplicate email', async () => {

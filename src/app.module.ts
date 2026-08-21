@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Redis } from 'ioredis';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
+import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { appConfig } from './config/app.config';
@@ -79,9 +80,12 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
   providers: [
     // Guard order is load-bearing: ThrottlerGuard runs before JwtAuthGuard so
     // floods are rate-limited before any JWT verification work happens.
-    // PermissionsGuard runs last, after authentication has resolved req.user.
+    // UserThrottlerGuard runs after authentication and keys authenticated
+    // buckets by user id (it skips requests without a user, which the IP wall
+    // already counted). PermissionsGuard runs last, after req.user is resolved.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: UserThrottlerGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },

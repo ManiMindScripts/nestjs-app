@@ -2,7 +2,22 @@ import { Server } from 'socket.io';
 import { RealtimeAdapterStatus } from './realtime-adapter.status';
 import { RedisIoAdapter } from './redis-io.adapter';
 
-type ClientMock = Record<string, jest.Mock> & { status: string };
+type ClientMock = {
+  pSubscribe: jest.Mock;
+  subscribe: jest.Mock;
+  pUnsubscribe: jest.Mock;
+  unsubscribe: jest.Mock;
+  publish: jest.Mock;
+  on: jest.Mock;
+  once: jest.Mock;
+  removeListener: jest.Mock;
+  off: jest.Mock;
+  unref: jest.Mock;
+  disconnect: jest.Mock;
+  ping: jest.Mock;
+  duplicate: jest.Mock;
+  status: string;
+};
 
 describe('RedisIoAdapter', () => {
   let adapterStatus: RealtimeAdapterStatus;

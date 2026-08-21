@@ -5,11 +5,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import type { Express } from 'express';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppModule } from './app.module';
 import { AppConfig } from './config/app.config';
 import { buildCorsOptions } from './config/cors.config';
 import { validationPipeOptions } from './common/pipes/validation-pipe-options';
+import { applyTrustProxy } from './config/trust-proxy';
 import { RedisIoAdapter } from './modules/realtime/redis-io.adapter';
 
 async function bootstrap(): Promise<void> {
@@ -22,6 +24,10 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(appConfig.apiPrefix);
   const corsOptions = buildCorsOptions(appConfig.corsOrigin);
   app.enableCors(corsOptions);
+  applyTrustProxy(
+    app.getHttpAdapter().getInstance() as Express,
+    appConfig.trustProxy,
+  );
   app.useWebSocketAdapter(new RedisIoAdapter(app, corsOptions));
   app.use(helmet());
   app.use(compression());
@@ -32,7 +38,9 @@ async function bootstrap(): Promise<void> {
   if (appConfig.swaggerEnabled) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('My app API')
-      .setDescription('API Documentation')
+      .setDescription(
+        'API Documentation. All endpoints are rate-limited; see individual routes for stricter limits.',
+      )
       .setVersion('1.0')
       .addBearerAuth()
       .build();

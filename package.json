@@ -21,6 +21,7 @@
     "cleanup:test-data": "ts-node scripts/cleanup-test-data.ts",
     "lint": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\" --fix",
     "test": "jest",
+    "typecheck": "tsc -p tsconfig.spec.json --noEmit",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",

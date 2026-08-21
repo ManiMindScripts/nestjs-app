@@ -42,6 +42,18 @@ export const envValidationSchema = Joi.object({
   THROTTLE_TTL: Joi.number().integer().positive().default(60),
   THROTTLE_LIMIT: Joi.number().integer().positive().default(100),
 
+  // Hop count ("1") or comma-separated proxy IPs/CIDRs. Deliberately rejects
+  // permissive values like "true": a wrong trust setting lets clients forge
+  // X-Forwarded-For and mint fresh rate-limit buckets.
+  TRUST_PROXY: Joi.string()
+    .regex(
+      /^(?:\d+|[0-9a-fA-F.:]+(?:\/\d{1,3})?(?:\s*,\s*[0-9a-fA-F.:]+(?:\/\d{1,3})?)*)$/,
+    )
+    .message(
+      'TRUST_PROXY must be a verified hop count (e.g. "1") or a comma-separated list of proxy IPs/CIDRs',
+    )
+    .optional(),
+
   WS_CONNECT_RATE_LIMIT: Joi.number().integer().positive().default(20),
 
   LOG_LEVEL: Joi.string()

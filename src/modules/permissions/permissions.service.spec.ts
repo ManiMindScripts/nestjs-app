@@ -33,6 +33,7 @@ describe('PermissionsService', () => {
     innerJoin: jest.Mock;
     where: jest.Mock;
     getRawMany: jest.Mock;
+    distinct: jest.Mock;
   };
   let dataSource: { getRepository: jest.Mock; createQueryBuilder: jest.Mock };
   let configService: { getOrThrow: jest.Mock };

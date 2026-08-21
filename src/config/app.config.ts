@@ -8,6 +8,7 @@ export interface AppConfig {
   frontendUrl: string;
   logLevel: string;
   swaggerEnabled: boolean;
+  trustProxy?: string;
 }
 
 export const appConfig = registerAs('app', (): AppConfig => {
@@ -27,5 +28,6 @@ export const appConfig = registerAs('app', (): AppConfig => {
     frontendUrl: env.FRONTEND_URL ?? 'http://localhost:5173',
     logLevel: env.LOG_LEVEL ?? 'info',
     swaggerEnabled,
+    trustProxy: env.TRUST_PROXY,
   };
 });

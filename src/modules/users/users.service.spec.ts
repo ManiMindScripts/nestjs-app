@@ -9,6 +9,7 @@ import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
+import { UserRole } from '../roles/entities/user-role.entity';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -323,7 +324,11 @@ describe('UsersService', () => {
     it('replaces the role set, deduplicates ids, invalidates the cache, and reloads roles', async () => {
       manager.find.mockResolvedValue([{ id: 'role-1' }, { id: 'role-2' }]);
       userRepo.findOne.mockResolvedValue(
-        user({ userRoles: [{ role: { id: 'role-1', name: 'admin' } }] }),
+        user({
+          userRoles: [
+            { role: { id: 'role-1', name: 'admin' } } as unknown as UserRole,
+          ],
+        }),
       );
 
       await service.setRoles('user-1', ['role-1', 'role-2', 'role-1']);
