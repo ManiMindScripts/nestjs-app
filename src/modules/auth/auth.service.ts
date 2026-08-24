@@ -10,7 +10,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { IsNull, Repository, DataSource } from 'typeorm';
 import { UserStatus } from '../../common/constants/user-status.enum';
-import { hashPassword, verifyPassword } from '../../common/utils/password';
+import { rethrowConflictOrOriginal } from '../../common/utils/db';
+import {
+  hashPassword,
+  runDummyPasswordVerification,
+  verifyPassword,
+} from '../../common/utils/password';
 import { JwtConfig } from '../../config/jwt.config';
 import { SafeUser, serializeUser } from '../users/users.serializer';
 import { User } from '../users/entities/user.entity';
@@ -64,12 +69,21 @@ export class AuthService {
     }
 
     const passwordHash = await hashPassword(dto.password);
-    const user = await this.usersService.createWithDefaultRole({
-      email,
-      passwordHash,
-      firstName: dto.firstName?.trim() || null,
-      lastName: dto.lastName?.trim() || null,
-    });
+
+    // The pre-check above narrows the window but cannot close it: two
+    // concurrent signups race the partial unique index, which must surface
+    // as 409 instead of an unhandled 500.
+    let user: User;
+    try {
+      user = await this.usersService.createWithDefaultRole({
+        email,
+        passwordHash,
+        firstName: dto.firstName?.trim() || null,
+        lastName: dto.lastName?.trim() || null,
+      });
+    } catch (error) {
+      rethrowConflictOrOriginal(error, 'Email is already registered');
+    }
 
     return this.createSession(user, meta);
   }
@@ -79,6 +93,9 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
+      // Burn the same argon2 work as the known-user path so response
+      // timing cannot reveal whether an email is registered.
+      await runDummyPasswordVerification(dto.password);
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -213,6 +230,7 @@ export class AuthService {
 
     // Always succeed: never disclose whether an email is registered.
     if (!user || user.status !== UserStatus.ACTIVE) {
+      await runDummyPasswordVerification(dto.email);
       return;
     }
 
@@ -237,33 +255,47 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
-    const record = await this.passwordResetTokenRepository.findOne({
-      where: { tokenHash: this.hashToken(dto.token) },
-      relations: { user: true },
+    const tokenHash = this.hashToken(dto.token);
+
+    // Strictly single-use: the pessimistic lock serializes concurrent
+    // submissions of the same token (losers observe usedAt and fail), and
+    // all three writes commit or roll back together. The expensive argon2
+    // hash runs only after validation succeeds, so junk tokens never burn
+    // CPU while holding the lock.
+    await this.dataSource.transaction(async (manager) => {
+      const record = await manager.findOne(PasswordResetToken, {
+        where: { tokenHash },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
+      // Loaded separately (not via a relation) because a pessimistic lock
+      // cannot be applied to the nullable side of an outer join.
+      const user = await manager.findOne(User, {
+        where: { id: record.userId },
+      });
+
+      if (!user || user.status !== UserStatus.ACTIVE) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
+      const passwordHash = await hashPassword(dto.newPassword);
+      await manager.update(User, user.id, { passwordHash });
+
+      await manager.update(PasswordResetToken, record.id, {
+        usedAt: new Date(),
+      });
+
+      // Force re-login everywhere: revoke every active refresh token the user has.
+      await manager.update(
+        RefreshToken,
+        { userId: user.id, revokedAt: IsNull() },
+        { revokedAt: new Date() },
+      );
     });
-
-    if (
-      !record ||
-      record.usedAt ||
-      record.expiresAt.getTime() < Date.now() ||
-      !record.user ||
-      record.user.status !== UserStatus.ACTIVE
-    ) {
-      throw new BadRequestException('Invalid or expired reset token');
-    }
-
-    const passwordHash = await hashPassword(dto.newPassword);
-    await this.usersService.updatePassword(record.user.id, passwordHash);
-
-    await this.passwordResetTokenRepository.update(record.id, {
-      usedAt: new Date(),
-    });
-
-    // Force re-login everywhere: revoke every active refresh token the user has.
-    await this.refreshTokenRepository.update(
-      { userId: record.user.id, revokedAt: IsNull() },
-      { revokedAt: new Date() },
-    );
   }
 
   private async createSession(

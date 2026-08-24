@@ -1,5 +1,10 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
+import {
+  getOptionsToken,
+  seconds,
+  ThrottlerStorage,
+  ThrottlerStorageService,
+} from '@nestjs/throttler';
 import { Test, TestingModule } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import type { Express } from 'express';
@@ -38,11 +43,6 @@ interface AuthResponseBody {
 }
 
 describe('Rate limiting (e2e)', () => {
-  const originalEnv = {
-    THROTTLE_LIMIT: process.env.THROTTLE_LIMIT,
-    THROTTLE_TTL: process.env.THROTTLE_TTL,
-    TRUST_PROXY: process.env.TRUST_PROXY,
-  };
   const runningApps: TestApp[] = [];
 
   afterEach(async () => {
@@ -58,36 +58,23 @@ describe('Rate limiting (e2e)', () => {
     }
   });
 
-  afterAll(() => {
-    Object.entries(originalEnv).forEach(([key, value]) => {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    });
-  });
-
   // Every test boots its own app with a dedicated in-memory throttler storage,
-  // so buckets never leak between tests or across suite runs.
+  // so buckets never leak between tests or across suite runs. The throttler
+  // options are overridden directly: @nestjs/config v4 reads its internal
+  // .env cache before process.env, so mutating THROTTLE_* env vars here has
+  // no effect on the module factory.
   const createApp = async ({
     limit,
     ttlSeconds,
     trustProxy,
   }: AppOptions): Promise<TestApp> => {
-    process.env.THROTTLE_LIMIT = String(limit);
-    process.env.THROTTLE_TTL = String(ttlSeconds);
-    if (trustProxy === undefined) {
-      delete process.env.TRUST_PROXY;
-    } else {
-      process.env.TRUST_PROXY = trustProxy;
-    }
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(ThrottlerStorage)
       .useValue(new ThrottlerStorageService())
+      .overrideProvider(getOptionsToken())
+      .useValue({ throttlers: [{ ttl: seconds(ttlSeconds), limit }] })
       .compile();
 
     const app = moduleFixture.createNestApplication();

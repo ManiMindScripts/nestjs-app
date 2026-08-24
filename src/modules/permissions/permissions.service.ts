@@ -13,10 +13,11 @@ import { createAppAbility, AppAbility } from '../../common/casl/app-ability';
 import {
   PermissionAction,
   PermissionRule,
+  permissionKey,
 } from '../../common/constants/permissions.enum';
 import { PermissionSubjectValue } from '../../common/constants/permission-subjects';
 import { JwtConfig } from '../../config/jwt.config';
-import { isUniqueViolation } from '../../common/utils/db';
+import { rethrowConflictOrOriginal } from '../../common/utils/db';
 import { REDIS_CLIENT } from '../../shared/redis/redis.module';
 import { UserRole } from '../roles/entities/user-role.entity';
 import { Permission } from './entities/permission.entity';
@@ -111,7 +112,10 @@ export class PermissionsService {
         }),
       );
     } catch (error) {
-      this.handleUniqueViolation(error, `${input.action}:${input.subject}`);
+      rethrowConflictOrOriginal(
+        error,
+        `Permission "${permissionKey(input)}" already exists`,
+      );
     }
   }
 
@@ -170,16 +174,9 @@ export class PermissionsService {
       .findOneBy({ action, subject });
     if (existing) {
       throw new ConflictException(
-        `Permission "${action}:${subject}" already exists`,
+        `Permission "${permissionKey({ action, subject })}" already exists`,
       );
     }
-  }
-
-  private handleUniqueViolation(error: unknown, key: string): never {
-    if (isUniqueViolation(error)) {
-      throw new ConflictException(`Permission "${key}" already exists`);
-    }
-    throw error;
   }
 
   private async safeGet(key: string): Promise<PermissionRule[] | null> {

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Redis } from 'ioredis';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -62,7 +62,9 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
       useFactory: (configService: ConfigService, redisClient: Redis) => ({
         throttlers: [
           {
-            ttl: configService.getOrThrow<number>('THROTTLE_TTL'),
+            // THROTTLE_TTL is configured in seconds; throttler v6 expects
+            // milliseconds, hence the seconds() conversion.
+            ttl: seconds(configService.getOrThrow<number>('THROTTLE_TTL')),
             limit: configService.getOrThrow<number>('THROTTLE_LIMIT'),
           },
         ],

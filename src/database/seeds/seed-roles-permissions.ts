@@ -1,7 +1,10 @@
 import 'reflect-metadata';
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
-import { PermissionAction } from '../../common/constants/permissions.enum';
+import {
+  PermissionAction,
+  permissionKey,
+} from '../../common/constants/permissions.enum';
 import { UserStatus } from '../../common/constants/user-status.enum';
 import { hashPassword, verifyPassword } from '../../common/utils/password';
 import { Permission } from '../../modules/permissions/entities/permission.entity';
@@ -48,7 +51,7 @@ async function seedPermissions(
 
   for (const role of SEED_ROLES) {
     for (const seedPermission of role.permissions) {
-      const key = `${seedPermission.action}:${seedPermission.subject}`;
+      const key = permissionKey(seedPermission);
       if (permissionMap.has(key)) {
         continue;
       }
@@ -94,9 +97,7 @@ async function seedRoles(
     }
 
     for (const seedPermission of seedRole.permissions) {
-      const permission = permissionMap.get(
-        `${seedPermission.action}:${seedPermission.subject}`,
-      );
+      const permission = permissionMap.get(permissionKey(seedPermission));
 
       if (!permission) {
         continue;
@@ -115,7 +116,7 @@ async function seedRoles(
           }),
         );
         console.log(
-          `+ role_permission ${seedRole.name} -> ${seedPermission.action}:${seedPermission.subject}`,
+          `+ role_permission ${seedRole.name} -> ${permissionKey(seedPermission)}`,
         );
       }
     }

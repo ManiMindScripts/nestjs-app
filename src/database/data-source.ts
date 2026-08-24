@@ -26,7 +26,9 @@ export default new DataSource({
     RefreshToken,
     PasswordResetToken,
   ],
-  migrations: ['src/database/migrations/*.{ts,js}'],
+  // Resolved from this file's own directory so the same glob finds TS
+  // sources under ts-node (dev) and compiled JS in the production image.
+  migrations: [`${__dirname}/migrations/*.{ts,js}`],
   namingStrategy: new SnakeCaseNamingStrategy(),
   synchronize: false,
   logging: (process.env.DB_LOGGING ?? 'true').toLowerCase() === 'true',

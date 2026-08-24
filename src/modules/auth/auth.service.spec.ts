@@ -42,7 +42,6 @@ describe('AuthService', () => {
     findByEmail: jest.Mock;
     findById: jest.Mock;
     createWithDefaultRole: jest.Mock;
-    updatePassword: jest.Mock;
   };
   let jwtService: { signAsync: jest.Mock };
   let mailService: { sendPasswordReset: jest.Mock };
@@ -103,7 +102,6 @@ describe('AuthService', () => {
       findByEmail: jest.fn(),
       findById: jest.fn(),
       createWithDefaultRole: jest.fn(),
-      updatePassword: jest.fn().mockResolvedValue(undefined),
     };
     jwtService = { signAsync: jest.fn().mockResolvedValue('access-token') };
     mailService = { sendPasswordReset: jest.fn().mockResolvedValue(undefined) };
@@ -369,39 +367,47 @@ describe('AuthService', () => {
   });
 
   describe('resetPassword', () => {
-    it('updates the password and revokes all active sessions', async () => {
-      passwordResetTokenRepository.findOne.mockResolvedValue({
-        id: 'prt-1',
-        usedAt: null,
-        expiresAt: new Date(Date.now() + 60_000),
-        user,
-      });
+    const validRecord = {
+      id: 'prt-1',
+      usedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: 'user-1',
+    };
+
+    it('updates the password and revokes all active sessions atomically', async () => {
+      manager.findOne
+        .mockResolvedValueOnce(validRecord)
+        .mockResolvedValueOnce(user);
 
       await service.resetPassword({
         token: 'a'.repeat(64),
         newPassword: 'NewPassword456',
       });
 
-      expect(usersService.updatePassword).toHaveBeenCalledWith(
-        'user-1',
-        expect.any(String),
+      expect(manager.findOne).toHaveBeenCalledWith(
+        PasswordResetToken,
+        expect.objectContaining({
+          where: { tokenHash: expect.any(String) },
+          lock: { mode: 'pessimistic_write' },
+        }),
       );
-      expect(passwordResetTokenRepository.update).toHaveBeenCalledWith(
-        'prt-1',
-        { usedAt: expect.any(Date) },
-      );
-      expect(refreshTokenRepository.update).toHaveBeenCalledWith(
+      expect(manager.update).toHaveBeenCalledWith(User, 'user-1', {
+        passwordHash: expect.any(String),
+      });
+      expect(manager.update).toHaveBeenCalledWith(PasswordResetToken, 'prt-1', {
+        usedAt: expect.any(Date),
+      });
+      expect(manager.update).toHaveBeenCalledWith(
+        RefreshToken,
         expect.objectContaining({ userId: 'user-1' }),
         expect.objectContaining({ revokedAt: expect.any(Date) }),
       );
     });
 
     it('rejects an already-used token', async () => {
-      passwordResetTokenRepository.findOne.mockResolvedValue({
-        id: 'prt-1',
+      manager.findOne.mockResolvedValueOnce({
+        ...validRecord,
         usedAt: new Date(),
-        expiresAt: new Date(Date.now() + 60_000),
-        user,
       });
 
       await expect(
@@ -410,15 +416,13 @@ describe('AuthService', () => {
           newPassword: 'NewPassword456',
         }),
       ).rejects.toThrow(BadRequestException);
-      expect(usersService.updatePassword).not.toHaveBeenCalled();
+      expect(manager.update).not.toHaveBeenCalled();
     });
 
     it('rejects an expired token', async () => {
-      passwordResetTokenRepository.findOne.mockResolvedValue({
-        id: 'prt-1',
-        usedAt: null,
+      manager.findOne.mockResolvedValueOnce({
+        ...validRecord,
         expiresAt: new Date(Date.now() - 60_000),
-        user,
       });
 
       await expect(

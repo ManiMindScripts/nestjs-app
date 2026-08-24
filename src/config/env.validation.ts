@@ -39,6 +39,7 @@ export const envValidationSchema = Joi.object({
   REDIS_PORT: Joi.number().port().default(6379),
   REDIS_PASSWORD: Joi.string().allow('').default(''),
 
+  // In seconds; converted to milliseconds where the throttler consumes it.
   THROTTLE_TTL: Joi.number().integer().positive().default(60),
   THROTTLE_LIMIT: Joi.number().integer().positive().default(100),
 
@@ -54,7 +55,8 @@ export const envValidationSchema = Joi.object({
     )
     .optional(),
 
-  WS_CONNECT_RATE_LIMIT: Joi.number().integer().positive().default(20),
+  // 0 disables the WS connect rate limit (see .env.example).
+  WS_CONNECT_RATE_LIMIT: Joi.number().integer().min(0).default(20),
 
   LOG_LEVEL: Joi.string()
     .valid('error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly')

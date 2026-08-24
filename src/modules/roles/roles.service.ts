@@ -1,13 +1,13 @@
 import {
-  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
-import { isUniqueViolation } from '../../common/utils/db';
+import { DataSource, Repository } from 'typeorm';
+import { rethrowConflictOrOriginal } from '../../common/utils/db';
+import { replaceJoinRows } from '../../common/utils/replace-join-rows';
 import { PermissionsService } from '../permissions/permissions.service';
 import { Permission } from '../permissions/entities/permission.entity';
 import { Role } from './entities/role.entity';
@@ -56,7 +56,7 @@ export class RolesService {
 
       return this.getOrThrow(role.id);
     } catch (error) {
-      this.handleUniqueViolation(error, name);
+      rethrowConflictOrOriginal(error, `Role "${name}" already exists`);
     }
   }
 
@@ -84,7 +84,7 @@ export class RolesService {
     try {
       await this.roleRepository.save(role);
     } catch (error) {
-      this.handleUniqueViolation(error, currentName);
+      rethrowConflictOrOriginal(error, `Role "${currentName}" already exists`);
     }
     return this.getOrThrow(id);
   }
@@ -105,36 +105,16 @@ export class RolesService {
     const role = await this.getOrThrow(id);
     this.assertMutable(role, 'modify permissions of');
 
-    const distinctIds = [...new Set(permissionIds)];
-
     await this.dataSource.transaction(async (manager) => {
-      if (distinctIds.length > 0) {
-        // Reject unknown ids before wiping the existing set: a typo'd id
-        // must never silently succeed and grant nothing.
-        const existing = await manager.find(Permission, {
-          where: { id: In(distinctIds) },
-          select: { id: true },
-        });
-        if (existing.length !== distinctIds.length) {
-          const found = new Set(existing.map((permission) => permission.id));
-          const missing = distinctIds.filter(
-            (permissionId) => !found.has(permissionId),
-          );
-          throw new BadRequestException(
-            `Unknown permission id(s): ${missing.join(', ')}`,
-          );
-        }
-      }
-
-      await manager.delete(RolePermission, { roleId: role.id });
-      if (distinctIds.length > 0) {
-        await manager.save(
-          RolePermission,
-          distinctIds.map((permissionId) =>
-            manager.create(RolePermission, { roleId: role.id, permissionId }),
-          ),
-        );
-      }
+      await replaceJoinRows({
+        manager,
+        joinEntity: RolePermission,
+        filter: { roleId: role.id },
+        foreignKeyField: 'permissionId',
+        referencedEntity: Permission,
+        ids: permissionIds,
+        label: 'permission',
+      });
     });
 
     const userIds = await this.permissionsService.findUserIdsWithRole(role.id);
@@ -156,12 +136,5 @@ export class RolesService {
         `System role "${role.name}" cannot be ${action}`,
       );
     }
-  }
-
-  private handleUniqueViolation(error: unknown, key: string): never {
-    if (isUniqueViolation(error)) {
-      throw new ConflictException(`Role "${key}" already exists`);
-    }
-    throw error;
   }
 }

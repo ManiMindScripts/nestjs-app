@@ -81,7 +81,7 @@ describe('HealthController', () => {
 
     expect(body.status).toBe('degraded');
     expect(body.redis.status).toBe('down');
-    expect(body.redis.error).toBe('ECONNREFUSED');
+    expect(body.redis.error).toBe('unreachable');
     expect(response.status).toHaveBeenCalledWith(
       HttpStatus.SERVICE_UNAVAILABLE,
     );

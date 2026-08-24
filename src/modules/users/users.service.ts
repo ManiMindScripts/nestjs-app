@@ -7,8 +7,9 @@ import {
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager, ILike, In, IsNull } from 'typeorm';
 import { UserStatus } from '../../common/constants/user-status.enum';
-import { isUniqueViolation } from '../../common/utils/db';
+import { rethrowConflictOrOriginal } from '../../common/utils/db';
 import { hashPassword } from '../../common/utils/password';
+import { replaceJoinRows } from '../../common/utils/replace-join-rows';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -130,10 +131,7 @@ export class UsersService {
       );
       return this.findWithRolesOrFail(created.id);
     } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Email is already registered');
-      }
-      throw error;
+      rethrowConflictOrOriginal(error, 'Email is already registered');
     }
   }
 
@@ -188,10 +186,6 @@ export class UsersService {
     await this.permissionsService.invalidateUser(id);
   }
 
-  async updatePassword(userId: string, passwordHash: string): Promise<void> {
-    await this.dataSource.getRepository(User).update(userId, { passwordHash });
-  }
-
   async setRoles(userId: string, roleIds: string[]): Promise<User> {
     await this.dataSource.transaction(async (manager) => {
       await this.assignRoles(manager, userId, roleIds);
@@ -240,32 +234,15 @@ export class UsersService {
     userId: string,
     roleIds: string[],
   ): Promise<void> {
-    const distinctIds = [...new Set(roleIds)];
-    if (distinctIds.length > 0) {
-      // Reject unknown role ids before wiping the existing set: a typo'd id
-      // must never silently succeed and grant nothing.
-      const existing = await manager.find(Role, {
-        where: { id: In(distinctIds) },
-        select: { id: true },
-      });
-      if (existing.length !== distinctIds.length) {
-        const found = new Set(existing.map((role) => role.id));
-        const missing = distinctIds.filter((roleId) => !found.has(roleId));
-        throw new BadRequestException(
-          `Unknown role id(s): ${missing.join(', ')}`,
-        );
-      }
-    }
-
-    await manager.delete(UserRole, { userId });
-    if (distinctIds.length > 0) {
-      await manager.save(
-        UserRole,
-        distinctIds.map((roleId) =>
-          manager.create(UserRole, { userId, roleId }),
-        ),
-      );
-    }
+    await replaceJoinRows({
+      manager,
+      joinEntity: UserRole,
+      filter: { userId },
+      foreignKeyField: 'roleId',
+      referencedEntity: Role,
+      ids: roleIds,
+      label: 'role',
+    });
   }
 
   private async loadUsersWithRoles(ids: string[]): Promise<User[]> {

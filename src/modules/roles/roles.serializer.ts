@@ -1,3 +1,4 @@
+import { permissionKey } from '../../common/constants/permissions.enum';
 import { Role } from './entities/role.entity';
 
 export interface SafeRolePermission {
@@ -22,9 +23,7 @@ export function serializeRole(role: Role): SafeRole {
       action: rolePermission.permission.action,
       subject: rolePermission.permission.subject,
     }))
-    .sort((a, b) =>
-      `${a.action}:${a.subject}`.localeCompare(`${b.action}:${b.subject}`),
-    );
+    .sort((a, b) => permissionKey(a).localeCompare(permissionKey(b)));
 
   return {
     id: role.id,

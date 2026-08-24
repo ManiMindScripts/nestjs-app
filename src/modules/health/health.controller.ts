@@ -1,4 +1,11 @@
-import { Controller, Get, HttpStatus, Inject, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpStatus,
+  Inject,
+  Logger,
+  Res,
+} from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -35,6 +42,8 @@ interface HealthResponse {
 @SkipThrottle()
 @Controller('health')
 export class HealthController {
+  private readonly logger = new Logger(HealthController.name);
+
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
@@ -82,10 +91,16 @@ export class HealthController {
       await operation();
       return { status: 'up', latencyMs: Date.now() - start };
     } catch (error) {
+      // Driver messages can contain hosts, ports and internals: keep the
+      // detail server-side and expose only a generic marker publicly.
+      this.logger.error(
+        `Health probe failed after ${Date.now() - start}ms`,
+        error instanceof Error ? error.stack : String(error),
+      );
       return {
         status: 'down',
         latencyMs: Date.now() - start,
-        error: error instanceof Error ? error.message : String(error),
+        error: 'unreachable',
       };
     }
   }

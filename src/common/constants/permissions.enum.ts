@@ -13,6 +13,12 @@ export interface PermissionRule {
   subject: PermissionSubjectValue;
 }
 
-export function permissionKey(rule: PermissionRule): string {
-  return `${rule.action}:${rule.subject}`;
+export function permissionKey({
+  action,
+  subject,
+}: {
+  action: string;
+  subject: string;
+}): string {
+  return `${action}:${subject}`;
 }

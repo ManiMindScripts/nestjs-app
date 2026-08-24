@@ -107,6 +107,11 @@ export class RedisIoAdapter extends IoAdapter {
     const configService = this.app.get<ConfigService>(ConfigService);
     const limit = configService.getOrThrow<number>('WS_CONNECT_RATE_LIMIT');
 
+    // 0 disables the check entirely (documented in .env.example).
+    if (limit <= 0) {
+      return;
+    }
+
     server.use((socket: Socket, next: (err?: Error) => void): void => {
       void this.checkConnectRateLimit(socket, next, limit);
     });
