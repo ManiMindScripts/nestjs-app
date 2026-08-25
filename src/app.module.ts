@@ -13,6 +13,7 @@ import { appConfig } from './config/app.config';
 import { databaseConfig, DatabaseConfig } from './config/database.config';
 import { envValidationSchema } from './config/env.validation';
 import { jwtConfig } from './config/jwt.config';
+import { mailConfig } from './config/mail.config';
 import { redisConfig } from './config/redis.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
@@ -21,6 +22,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
 import { LoggerModule } from './shared/logger/logger.module';
+import { AlertingModule } from './shared/alerting/alerting.module';
 import { RedisModule, REDIS_CLIENT } from './shared/redis/redis.module';
 import { ResilientThrottlerStorage } from './shared/throttler/resilient-throttler-storage';
 import { SnakeCaseNamingStrategy } from './database/naming-strategy';
@@ -30,7 +32,7 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      load: [appConfig, databaseConfig, jwtConfig, redisConfig],
+      load: [appConfig, databaseConfig, jwtConfig, redisConfig, mailConfig],
       validationSchema: envValidationSchema,
       validationOptions: {
         abortEarly: false,
@@ -38,6 +40,7 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
       },
     }),
     LoggerModule,
+    AlertingModule,
     RedisModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

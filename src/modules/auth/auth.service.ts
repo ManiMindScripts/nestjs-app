@@ -251,7 +251,9 @@ export class AuthService {
       }),
     );
 
-    await this.mailService.sendPasswordReset(user.email, resetToken);
+    // Fire-and-forget: MailService owns delivery (queue + retries) and never
+    // rejects, so the reset flow keeps its uniform response either way.
+    void this.mailService.sendPasswordReset(user.email, resetToken);
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {

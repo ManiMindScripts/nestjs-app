@@ -15,6 +15,7 @@ import { DataSource } from 'typeorm';
 import { Public } from '../../common/decorators/public.decorator';
 import { REDIS_CLIENT } from '../../shared/redis/redis.module';
 import { RealtimeAdapterStatus } from '../realtime/realtime-adapter.status';
+import { MailQueueStatus } from '../auth/mail/mail-queue.status';
 
 interface ProbeResult {
   status: 'up' | 'down';
@@ -30,11 +31,23 @@ type RedisAdapterProbe =
       since: string | null;
     };
 
+/**
+ * Informational only: a sticky "last permanent failure" is not the same as
+ * current SMTP health, so unlike the adapter probe it does NOT flip the
+ * overall status. Active alerting for these failures comes from the
+ * alerting webhook, not from uptime monitors polling this field.
+ */
+interface MailProbe {
+  lastFailureReason: string | null;
+  lastFailureAt: string | null;
+}
+
 interface HealthResponse {
   status: 'ok' | 'degraded';
   db: ProbeResult;
   redis: ProbeResult;
   redisAdapter: RedisAdapterProbe;
+  mail: MailProbe;
   timestamp: string;
 }
 
@@ -48,6 +61,7 @@ export class HealthController {
     @InjectDataSource() private readonly dataSource: DataSource,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly adapterStatus: RealtimeAdapterStatus,
+    private readonly mailQueueStatus: MailQueueStatus,
   ) {}
 
   @Public()
@@ -76,11 +90,17 @@ export class HealthController {
       response.status(HttpStatus.SERVICE_UNAVAILABLE);
     }
 
+    const mail: MailProbe = {
+      lastFailureReason: this.mailQueueStatus.failure?.reason ?? null,
+      lastFailureAt: this.mailQueueStatus.failure?.at ?? null,
+    };
+
     return {
       status: degraded ? 'degraded' : 'ok',
       db,
       redis,
       redisAdapter,
+      mail,
       timestamp: new Date().toISOString(),
     };
   }

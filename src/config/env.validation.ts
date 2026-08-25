@@ -35,6 +35,32 @@ export const envValidationSchema = Joi.object({
     .default('lax'),
   PASSWORD_RESET_TOKEN_TTL: Joi.string().default('30m'),
 
+  // Mail delivery. Production MUST use the smtp driver (fail-fast at boot);
+  // console mode prints reset links to the log and is for local development.
+  MAIL_DRIVER: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: Joi.string().valid('smtp').required(),
+    otherwise: Joi.string().valid('console', 'smtp').default('console'),
+  }),
+  MAIL_HOST: Joi.string().when('MAIL_DRIVER', {
+    is: 'smtp',
+    then: Joi.string().min(1).required(),
+    otherwise: Joi.optional(),
+  }),
+  MAIL_PORT: Joi.number().port().default(587),
+  MAIL_SECURE: Joi.boolean().default(false),
+  MAIL_USER: Joi.string().allow('').optional(),
+  MAIL_PASS: Joi.string().allow('').optional(),
+  MAIL_FROM: Joi.string().when('MAIL_DRIVER', {
+    is: 'smtp',
+    then: Joi.string().min(3).required(),
+    otherwise: Joi.optional(),
+  }),
+
+  // Optional alerting sink for permanently-failed background work
+  // (e.g. exhausted mail-queue retries). Empty = alerting disabled.
+  ALERT_SLACK_WEBHOOK_URL: Joi.string().uri().allow('').default(''),
+
   REDIS_HOST: Joi.string().default('localhost'),
   REDIS_PORT: Joi.number().port().default(6379),
   REDIS_PASSWORD: Joi.string().allow('').default(''),

@@ -9,7 +9,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { MailService } from './mail/mail.service';
+import { MailModule } from './mail/mail.module';
 import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
 
 @Module({
@@ -32,8 +32,9 @@ import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
     }),
     UsersModule,
     CommonAuthModule,
+    MailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAccessStrategy, MailService],
+  providers: [AuthService, JwtAccessStrategy],
 })
 export class AuthModule {}
