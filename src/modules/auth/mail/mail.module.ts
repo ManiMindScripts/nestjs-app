@@ -19,7 +19,6 @@ import {
   MAIL_TRANSPORTER,
 } from './mail.tokens';
 
-const SMTP_POOL_MAX_CONNECTIONS = 3;
 const MAIL_JOB_ATTEMPTS = 3;
 const MAIL_BACKOFF_BASE_MS = 1_000;
 // Failed jobs stay inspectable for a day; comfortably outlives the reset
@@ -55,8 +54,6 @@ const REMOVE_ON_FAIL_AGE_SECONDS = 24 * 60 * 60;
           connectionTimeout: MAIL_CONNECT_TIMEOUT_MS,
           greetingTimeout: MAIL_GREETING_TIMEOUT_MS,
           socketTimeout: MAIL_SOCKET_TIMEOUT_MS,
-          pool: true,
-          maxConnections: SMTP_POOL_MAX_CONNECTIONS,
         });
       },
     },
