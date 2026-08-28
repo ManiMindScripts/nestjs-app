@@ -27,6 +27,6 @@ import { MetricsService } from './metrics.service';
       },
     },
   ],
-  exports: [MetricsService],
+  exports: [MetricsService, ErrorRateMonitor],
 })
 export class MetricsModule {}

@@ -14,7 +14,9 @@ describe('CorrelationMiddleware', () => {
     const request = {
       header: (name: string) => headers[name.toLowerCase()],
     } as unknown as Request;
-    const setHeader = jest.fn() as jest.Mock<[string, string], []>;
+    const setHeader = jest.fn() as jest.Mock<
+      (name: string, value: string) => void
+    >;
     const response = { setHeader } as unknown as Response;
     return { request, response, setHeader };
   };
@@ -49,7 +51,8 @@ describe('CorrelationMiddleware', () => {
 
     middleware.use(request, response, next);
 
-    const id: unknown = setHeader.mock.calls[0][1];
+    const calls = setHeader.mock.calls as unknown as Array<[string, string]>;
+    const id: unknown = calls[0][1];
     expect(id).toMatch(/^[0-9a-f]{32}$/);
     expect(id).not.toBe('\nbad\r');
   });

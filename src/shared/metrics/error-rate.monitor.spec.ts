@@ -87,7 +87,8 @@ describe('ErrorRateMonitor', () => {
     monitor.check();
 
     expect(notify).toHaveBeenCalledTimes(1);
-    const message = notify.mock.calls[0][0] as string;
+    const calls = notify.mock.calls as unknown as Array<[string]>;
+    const message = calls[0][0];
     expect(message).toContain('30%');
     monitor.onModuleDestroy();
   });
