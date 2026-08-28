@@ -1,4 +1,4 @@
-import { Logger, UseGuards, UsePipes } from '@nestjs/common';
+import { Logger, UseGuards, UseInterceptors, UsePipes } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -17,9 +17,11 @@ import { WsJwtGuard } from '../../../common/guards/ws-jwt.guard';
 import type { AuthedSocket } from '../../../common/guards/ws-jwt.guard';
 import { WsThrottleGuard } from '../../../common/guards/ws-throttle.guard';
 import { WsValidationPipe } from '../../../common/pipes/ws-validation.pipe';
+import { CorrelationService } from '../../../shared/correlation/correlation.service';
 import { PermissionsService } from '../../permissions/permissions.service';
 import type { User } from '../../users/entities/user.entity';
 import { BroadcastNotificationDto } from '../dto/broadcast-notification.dto';
+import { WsCorrelationInterceptor } from '../ws-correlation.interceptor';
 
 const USER_ROOM_PREFIX = 'user:';
 
@@ -31,6 +33,7 @@ const userRoom = (userId: string): string => `${USER_ROOM_PREFIX}${userId}`;
 })
 @UseGuards(WsThrottleGuard)
 @UsePipes(new WsValidationPipe())
+@UseInterceptors(WsCorrelationInterceptor)
 export class NotificationsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
@@ -42,27 +45,37 @@ export class NotificationsGateway
   constructor(
     private readonly permissionsService: PermissionsService,
     private readonly wsJwtGuard: WsJwtGuard,
+    private readonly correlationService: CorrelationService,
   ) {}
 
   // Nest does not run guards on handleConnection, so authenticate is invoked
   // directly here; message handlers below rely on the same guard via @UseGuards.
+  // The connection lifecycle logs are wrapped in a correlation context so they
+  // trace to the same id the session's events will use.
   async handleConnection(
     @ConnectedSocket() socket: AuthedSocket,
   ): Promise<void> {
-    if (!(await this.wsJwtGuard.authenticate(socket))) {
-      return;
-    }
-    await socket.join(userRoom(socket.data.user.id));
-    this.logger.log(
-      `WS connected socket=${socket.id} userId=${socket.data.user.id}`,
-    );
+    const result = await this.wsJwtGuard.authenticate(socket);
+    const id = socket.data?.correlationId ?? this.correlationService.generate();
+    this.correlationService.run(id, () => {
+      if (!result) {
+        return;
+      }
+      void socket.join(userRoom(socket.data.user.id));
+      this.logger.log(
+        `WS connected socket=${socket.id} userId=${socket.data.user.id}`,
+      );
+    });
   }
 
   handleDisconnect(@ConnectedSocket() socket: AuthedSocket): void {
-    const userId: User['id'] | undefined = socket.data.user?.id;
-    this.logger.log(
-      `WS disconnected socket=${socket.id} userId=${userId ?? 'unknown'}`,
-    );
+    const userId: User['id'] | undefined = socket.data?.user?.id;
+    const id = socket.data?.correlationId ?? this.correlationService.generate();
+    this.correlationService.run(id, () => {
+      this.logger.log(
+        `WS disconnected socket=${socket.id} userId=${userId ?? 'unknown'}`,
+      );
+    });
   }
 
   @SubscribeMessage('notifications:broadcast')

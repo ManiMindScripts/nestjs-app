@@ -30,6 +30,7 @@ const SEED_ROLES: SeedRole[] = [
       { action: PermissionAction.MANAGE, subject: 'User' },
       { action: PermissionAction.MANAGE, subject: 'Role' },
       { action: PermissionAction.MANAGE, subject: 'Permission' },
+      { action: PermissionAction.MANAGE, subject: 'Metric' },
     ],
   },
   {

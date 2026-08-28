@@ -6,6 +6,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import type { Express } from 'express';
+import * as express from 'express';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppModule } from './app.module';
 import { AppConfig } from './config/app.config';
@@ -13,6 +14,7 @@ import { buildCorsOptions } from './config/cors.config';
 import { validationPipeOptions } from './common/pipes/validation-pipe-options';
 import { applyTrustProxy } from './config/trust-proxy';
 import { RedisIoAdapter } from './modules/realtime/redis-io.adapter';
+import { CorrelationMiddleware } from './shared/correlation/correlation.middleware';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -20,6 +22,12 @@ async function bootstrap(): Promise<void> {
 
   const configService = app.get(ConfigService);
   const appConfig = configService.getOrThrow<AppConfig>('app');
+
+  const correlationMiddleware = app.get(CorrelationMiddleware);
+  app.use(
+    (req: express.Request, res: express.Response, next: express.NextFunction) =>
+      correlationMiddleware.use(req, res, next),
+  );
 
   app.setGlobalPrefix(appConfig.apiPrefix);
   const corsOptions = buildCorsOptions(appConfig.corsOrigin);

@@ -105,4 +105,13 @@ describe('HealthController', () => {
       HttpStatus.SERVICE_UNAVAILABLE,
     );
   });
+
+  it('ping reports ok without probing any dependency', () => {
+    const body = controller.ping();
+
+    expect(body.status).toBe('ok');
+    expect(body.timestamp).toEqual(expect.any(String));
+    expect(dataSource.query).not.toHaveBeenCalled();
+    expect(redis.ping).not.toHaveBeenCalled();
+  });
 });

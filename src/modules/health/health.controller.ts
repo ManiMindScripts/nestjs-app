@@ -65,6 +65,13 @@ export class HealthController {
   ) {}
 
   @Public()
+  @Get('ping')
+  @ApiOperation({ summary: 'Liveness check (process is up)' })
+  ping(): { status: 'ok'; timestamp: string } {
+    return { status: 'ok', timestamp: new Date().toISOString() };
+  }
+
+  @Public()
   @Get()
   @ApiOperation({ summary: 'Health check (liveness + dependency probes)' })
   async check(

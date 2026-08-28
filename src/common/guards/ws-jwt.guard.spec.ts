@@ -1,9 +1,11 @@
 import { ExecutionContext } from '@nestjs/common';
 import { UserStatus } from '../constants/user-status.enum';
+import { CorrelationService } from '../../shared/correlation/correlation.service';
 import { WsJwtGuard } from './ws-jwt.guard';
 
 describe('WsJwtGuard', () => {
   const identity = { verifyToken: jest.fn() };
+  const correlation = new CorrelationService();
   let guard: WsJwtGuard;
   let socket: {
     id: string;
@@ -32,7 +34,7 @@ describe('WsJwtGuard', () => {
 
   beforeEach(() => {
     identity.verifyToken.mockReset();
-    guard = new WsJwtGuard(identity as never);
+    guard = new WsJwtGuard(identity as never, correlation);
     socket = makeSocket();
   });
 
@@ -44,6 +46,7 @@ describe('WsJwtGuard', () => {
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(socket.data.user).toBe(user);
+    expect(typeof socket.data.correlationId).toBe('string');
     expect(socket.disconnect).not.toHaveBeenCalled();
   });
 

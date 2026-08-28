@@ -14,6 +14,7 @@ import { databaseConfig, DatabaseConfig } from './config/database.config';
 import { envValidationSchema } from './config/env.validation';
 import { jwtConfig } from './config/jwt.config';
 import { mailConfig } from './config/mail.config';
+import { metricsConfig } from './shared/metrics/metrics.config';
 import { redisConfig } from './config/redis.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
@@ -21,8 +22,10 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
+import { CorrelationModule } from './shared/correlation/correlation.module';
 import { LoggerModule } from './shared/logger/logger.module';
 import { AlertingModule } from './shared/alerting/alerting.module';
+import { MetricsModule } from './shared/metrics/metrics.module';
 import { RedisModule, REDIS_CLIENT } from './shared/redis/redis.module';
 import { ResilientThrottlerStorage } from './shared/throttler/resilient-throttler-storage';
 import { SnakeCaseNamingStrategy } from './database/naming-strategy';
@@ -32,7 +35,14 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      load: [appConfig, databaseConfig, jwtConfig, redisConfig, mailConfig],
+      load: [
+        appConfig,
+        databaseConfig,
+        jwtConfig,
+        redisConfig,
+        mailConfig,
+        metricsConfig,
+      ],
       validationSchema: envValidationSchema,
       validationOptions: {
         abortEarly: false,
@@ -40,7 +50,9 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
       },
     }),
     LoggerModule,
+    CorrelationModule,
     AlertingModule,
+    MetricsModule,
     RedisModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

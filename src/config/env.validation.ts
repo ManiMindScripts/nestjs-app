@@ -89,4 +89,11 @@ export const envValidationSchema = Joi.object({
     .default('info'),
 
   SWAGGER_ENABLED: Joi.boolean().default(true),
+
+  // Observability metrics + 5xx error-rate alerting.
+  METRICS_ENABLED: Joi.boolean().default(true),
+  METRICS_ERROR_RATE_THRESHOLD: Joi.number().min(0).max(1).default(0.1),
+  METRICS_WINDOW_MS: Joi.number().integer().positive().default(300000),
+  METRICS_MIN_SAMPLES: Joi.number().integer().positive().default(20),
+  METRICS_ALERT_COOLDOWN_MS: Joi.number().integer().positive().default(300000),
 });

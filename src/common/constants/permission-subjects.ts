@@ -3,6 +3,7 @@ export const PermissionSubject = {
   ROLE: 'Role',
   PERMISSION: 'Permission',
   NOTIFICATION: 'Notification',
+  METRIC: 'Metric',
 } as const;
 
 export type PermissionSubjectValue =

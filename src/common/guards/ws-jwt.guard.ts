@@ -7,9 +7,13 @@ import {
 import type { Socket } from 'socket.io';
 import { AccessTokenIdentityService } from '../auth/access-token-identity.service';
 import type { User } from '../../modules/users/entities/user.entity';
+import { CorrelationService } from '../../shared/correlation/correlation.service';
 
 export interface AuthedSocket extends Socket {
-  data: { user: User };
+  data: {
+    user: User;
+    correlationId?: string;
+  };
 }
 
 @Injectable()
@@ -20,6 +24,7 @@ export class WsJwtGuard implements CanActivate {
 
   constructor(
     private readonly accessTokenIdentityService: AccessTokenIdentityService,
+    private readonly correlationService: CorrelationService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -39,6 +44,13 @@ export class WsJwtGuard implements CanActivate {
     try {
       const user = await this.accessTokenIdentityService.verifyToken(token);
       client.data.user = user;
+      // Persist one correlation id per socket session (assigned on connect),
+      // reused across every event of that socket so related logs are grouped.
+      // The actual per-event context is entered by WsCorrelationInterceptor,
+      // since AsyncLocalStorage does not survive the fresh per-event callback.
+      if (!client.data.correlationId) {
+        client.data.correlationId = this.correlationService.generate();
+      }
       return true;
     } catch (error) {
       this.logger.warn(
