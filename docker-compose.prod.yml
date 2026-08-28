@@ -1,0 +1,29 @@
+# ============================================================================
+# PRODUCTION STACK - self-contained (does NOT extend docker-compose.yml).
+#
+# Unlike the dev stack, there are NO postgres/redis/mailpit services here:
+# production uses Amazon RDS, Amazon ElastiCache and Amazon SES (managed).
+# Only the NestJS app runs on the EC2 host.
+#
+# The image is pulled from Amazon ECR and tagged with the short git SHA so a
+# deploy is reproducible and rollback means re-pulling a previous tag.
+# deploy.sh sets APP_IMAGE to the SHA-tagged URI before invoking this file.
+#
+# Usage:
+#   APP_IMAGE=123456789012.dkr.ecr.us-east-1.amazonaws.com/prod-app:<sha> \
+#     docker compose -f docker-compose.prod.yml up -d
+# ============================================================================
+
+services:
+  app:
+    image: ${APP_IMAGE:?Set APP_IMAGE to the SHA-tagged ECR image URI}
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    mem_limit: 512m
+    # Exposed on the loopback only. In production the public entrypoint is the
+    # application/network load balancer, which targets this port on the host.
+    # Nothing else publishes a port - RDS/ElastiCache/SES are all external.
+    ports:
+      - "127.0.0.1:3001:3000"
+    env_file: .env.production
