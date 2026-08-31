@@ -46,16 +46,37 @@ $ npm run start:prod
 
 ## Run tests
 
-```bash
-# unit tests
-$ npm run test
+**Prerequisites:** the e2e suites boot the real Nest app, so Postgres and Redis
+must be reachable (match the values in `.env`, e.g. via the project's compose
+setup). Run migrations and seed the baseline roles/permissions before the first
+e2e run.
 
-# e2e tests
+```bash
+# check-only lint (CI) / auto-fix (local)
+$ npm run lint
+$ npm run lint:fix
+
+# typecheck the tests
+$ npm run typecheck
+
+# unit tests
+$ npm test
+
+# unit tests with coverage (enforced coverage gate)
+$ npm run test:cov
+
+# e2e tests (needs Postgres + Redis; migrations + seed first)
+$ npm run migration:run
+$ npm run seed
 $ npm run test:e2e
 
-# test coverage
-$ npm run test:cov
+# reset data left behind by automated tests (rbac_*, e2e_*, users_* accounts)
+$ npm run cleanup:test-data
 ```
+
+**CI:** `.github/workflows/ci.yml` runs lint, typecheck, unit tests (with the
+coverage gate) and e2e tests against ephemeral Postgres + Redis service
+containers on every push and pull request.
 
 ## Deployment
 

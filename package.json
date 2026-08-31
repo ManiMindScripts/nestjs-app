@@ -21,11 +21,13 @@
     "migration:revert:prod": "typeorm migration:revert -d dist/database/data-source.js",
     "seed": "ts-node src/database/seeds/seed-roles-permissions.ts",
     "cleanup:test-data": "ts-node scripts/cleanup-test-data.ts",
-    "lint": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\" --fix",
+    "lint": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\"",
+    "lint:fix": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\" --fix",
     "test": "jest",
     "typecheck": "tsc -p tsconfig.spec.json --noEmit",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "test:cov:ci": "jest --coverage --ci --runInBand",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
@@ -109,6 +111,25 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
+    "coveragePathIgnorePatterns": [
+      "\\.spec\\.ts$",
+      "\\.config\\.ts$",
+      "/migrations/",
+      "/seeds/",
+      "/dto/",
+      "/entities/",
+      "/decorators/",
+      "/serializer\\.ts$",
+      "/strategies/"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 65,
+        "branches": 52,
+        "functions": 66,
+        "lines": 64
+      }
+    },
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }
