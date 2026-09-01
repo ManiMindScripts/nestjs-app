@@ -31,6 +31,38 @@
 $ npm install
 ```
 
+## Development environment
+
+There is a **single source of truth for local data**: the containerized
+Postgres/Redis/Mailpit defined in `docker-compose.yml`. Start them with:
+
+```bash
+$ docker compose up -d postgres redis mailpit
+```
+
+The app shares one canonical `.env` across both run modes, so whatever you use,
+the reset-password and login flows hit the **same** database (a password reset
+is always visible at the next login):
+
+- **Docker**: `docker compose up -d --build` — the app connects to the compose
+  services by name (`postgres`, `redis`, `mailpit`); compose overrides only the
+  hostnames and container-internal ports inline under `app.environment`.
+- **Native** (`npm run start:dev`): the same `.env` points at the published
+  ports (`localhost:5432` Postgres, `localhost:6380` Redis, `localhost:1025`
+  Mailpit), so native dev uses the identical data volume.
+
+The unique Docker-only values (service hostnames, internal ports, `NODE_ENV`,
+and the migrate/seed-on-start switches) live only in the compose file — there is
+no separate `.env.docker` to keep in sync.
+
+> **One database, no duplicates.** A second, host-installed Postgres on
+> `localhost:5432` previously caused `401 Invalid credentials` after a password
+> reset: it held a separate `my_app` database, so a reset that landed there was
+> invisible to the app's own Postgres. That native `postgresql-x64-18` service is
+> now **disabled**; the Docker Postgres is exposed on `5432` and is the only
+> database. Do not enable a second Postgres or start a native one on `5432`, or
+> reset/login will diverge again.
+
 ## Compile and run the project
 
 ```bash

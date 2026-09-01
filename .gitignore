@@ -44,7 +44,6 @@ plan.md
 .env.production
 .env.production.local
 .env.local
-.env.docker
 
 # temp directory
 .temp

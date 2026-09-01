@@ -6,7 +6,7 @@ import {
   permissionKey,
 } from '../../common/constants/permissions.enum';
 import { UserStatus } from '../../common/constants/user-status.enum';
-import { hashPassword, verifyPassword } from '../../common/utils/password';
+import { hashPassword } from '../../common/utils/password';
 import { Permission } from '../../modules/permissions/entities/permission.entity';
 import { RolePermission } from '../../modules/permissions/entities/role-permission.entity';
 import { Role } from '../../modules/roles/entities/role.entity';
@@ -137,6 +137,11 @@ async function seedBootstrapAdmin(dataSource: DataSource): Promise<void> {
   const roleRepository = dataSource.getRepository(Role);
   const userRoleRepository = dataSource.getRepository(UserRole);
 
+  // Create the bootstrap admin ONLY if it does not exist yet. Never overwrite
+  // an existing account's password: a reset/change applied later (e.g. via
+  // forgot-password) must survive container restarts and re-seeds. The password
+  // is configured once at first seed via ADMIN_PASSWORD; afterwards it belongs
+  // to the account owner and the seed leaves it untouched.
   let admin = await userRepository.findOneBy({ email: adminEmail });
 
   if (!admin) {
@@ -149,15 +154,6 @@ async function seedBootstrapAdmin(dataSource: DataSource): Promise<void> {
       }),
     );
     console.log(`+ user ${adminEmail}`);
-  } else {
-    // Converge the bootstrap admin to the configured password when it drifts
-    // (e.g. ADMIN_PASSWORD changed after the account was first seeded).
-    const matches = await verifyPassword(admin.passwordHash, adminPassword);
-    if (!matches) {
-      admin.passwordHash = await hashPassword(adminPassword);
-      await userRepository.save(admin);
-      console.log(`! updated password for ${adminEmail}`);
-    }
   }
 
   const adminRole = await roleRepository.findOneByOrFail({ name: 'admin' });

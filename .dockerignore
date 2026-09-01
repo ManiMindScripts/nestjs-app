@@ -5,6 +5,5 @@ test
 .git
 .env
 .env.*
-!.env.docker.example
 *.md
 .vscode

@@ -7,7 +7,21 @@ services:
     mem_limit: 512m
     ports:
       - "3001:3000"
-    env_file: .env.docker
+    # Single canonical env file (.env). Everything shared lives there; only the
+    # values that are inherently different in a Docker network - service
+    # hostnames, container-internal ports, the runtime mode and the entrypoint
+    # migrate/seed switches - are overridden inline below. No duplicated .env.
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      MAIL_HOST: mailpit
+      # Entrypoint switches: migrate + seed on first container start.
+      MIGRATE_ON_START: 'true'
+      SEED_ON_START: 'true'
     depends_on:
       postgres:
         condition: service_healthy
@@ -25,7 +39,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: my_app
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
