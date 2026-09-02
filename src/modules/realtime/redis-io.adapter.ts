@@ -6,6 +6,7 @@ import { Redis } from 'ioredis';
 import type { Server, ServerOptions, Socket } from 'socket.io';
 import type { CorsOptions } from '../../config/cors.config';
 import { REDIS_CLIENT } from '../../shared/redis/redis.module';
+import { attachRedisErrorHandler } from '../../shared/redis/redis-client.error-handler';
 import { RealtimeAdapterStatus } from './realtime-adapter.status';
 
 const ADAPTER_PING_TIMEOUT_MS = 2_000;
@@ -56,6 +57,14 @@ export class RedisIoAdapter extends IoAdapter {
     try {
       pubClient = this.redisClient.duplicate();
       subClient = pubClient.duplicate();
+      // Attach error listeners immediately: ioredis clients (including
+      // duplicates) emit 'error' on connection blips, and without a listener
+      // Node throws inside the event loop and crashes the process. The
+      // adapter's own degrade() path handles ping/attach failures; this
+      // listener keeps a raw 'error' event from bypassing that graceful
+      // degradation and taking the server down.
+      attachRedisErrorHandler(pubClient, 'io-adapter-pub');
+      attachRedisErrorHandler(subClient, 'io-adapter-sub');
     } catch (error) {
       this.degrade(server, error);
       return;

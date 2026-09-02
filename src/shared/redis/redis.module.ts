@@ -8,6 +8,7 @@ import {
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 import { RedisConfig } from '../../config/redis.config';
+import { attachRedisErrorHandler } from './redis-client.error-handler';
 
 export const REDIS_CLIENT = 'REDIS_CLIENT';
 
@@ -61,7 +62,7 @@ class RedisConnectionShutdown implements OnApplicationShutdown {
       useFactory: (configService: ConfigService): Redis => {
         const redisConfig = configService.getOrThrow<RedisConfig>('redis');
 
-        return new Redis({
+        const client = new Redis({
           host: redisConfig.host,
           port: redisConfig.port,
           password: redisConfig.password || undefined,
@@ -74,6 +75,8 @@ class RedisConnectionShutdown implements OnApplicationShutdown {
             return Math.min(times * 100, REDIS_RECONNECT_MAX_DELAY_MS);
           },
         });
+        attachRedisErrorHandler(client, 'main');
+        return client;
       },
     },
     RedisConnectionShutdown,
