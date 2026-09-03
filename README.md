@@ -149,3 +149,78 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+
+
+function logA() {
+  console.log("A");
+}
+
+function logB() {
+  console.log("B");
+}
+
+function logC() {
+  console.log("C");
+}
+
+function logD() {
+  console.log("D");
+}
+
+function logE() {
+  console.log("E");
+}
+
+function wait(ms, name) {
+  return new Promise(function(resolve) {
+    setTimeout(function() {
+      console.log("Timer finished: " + name);
+      resolve(name);
+    }, ms);
+  });
+}
+
+function taskA() {
+  console.log("A1");
+
+  wait(0, "A").then(function(result) {
+    console.log("A2 (" + result + ")");
+
+    return Promise.resolve();
+  }).then(function() {
+    console.log("A3");
+  });
+}
+
+function taskB() {
+  console.log("B1");
+
+  Promise.resolve().then(function() {
+    console.log("B2");
+
+    return wait(0, "B");
+  }).then(function() {
+    console.log("B3");
+  });
+}
+
+console.log("START");
+
+taskA();
+
+console.log("AFTER A");
+
+taskB();
+
+console.log("AFTER B");
+
+Promise.resolve().then(function() {
+  console.log("PROMISE-1");
+});
+
+setTimeout(function() {
+  console.log("TIMER-1");
+}, 0);
+
+console.log("END");
