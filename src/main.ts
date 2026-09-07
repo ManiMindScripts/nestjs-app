@@ -37,9 +37,6 @@ async function bootstrap(): Promise<void> {
     appConfig.trustProxy,
   );
   app.useWebSocketAdapter(new RedisIoAdapter(app, corsOptions));
-  // Helmet's default CSP blocks the inline scripts the Swagger UI injects.
-  // The API serves no HTML besides the docs page, so CSP is disabled while
-  // every other helmet protection (HSTS, noSniff, frameguard, ...) stays on.
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(compression());
   app.use(cookieParser());
