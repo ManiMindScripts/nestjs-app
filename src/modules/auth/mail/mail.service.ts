@@ -83,7 +83,6 @@ export class MailService implements OnModuleInit {
           }`,
           error instanceof Error ? error.stack : undefined,
         );
-        // Swallow: anti-enumeration + "never break the request" contract.
       });
   }
 }
