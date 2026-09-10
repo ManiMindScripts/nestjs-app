@@ -27,12 +27,6 @@ export class CorrelationService {
   generate(): string {
     return randomBytes(16).toString('hex');
   }
-
-  /**
-   * Sanitizes a client-supplied id before we echo it back in headers/logs:
-   * bounds length and rejects control characters (which could corrupt
-   * multi-line structured logs).
-   */
   isValidHeader(id: string | undefined): id is string {
     return (
       typeof id === 'string' &&
