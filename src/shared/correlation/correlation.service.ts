@@ -8,9 +8,6 @@ const MAX_HEADER_LENGTH = 64;
  * Threads a correlation/request id through every log line emitted while its
  * context is active. Backed by Node's AsyncLocalStorage, so the id survives
  * async boundaries (e.g. inside resolvers, repository calls, queue jobs)
- * without being plumbed through every method signature. Ids never appear in
- * the request/response body - only in logs, the X-Request-Id header, and
- * metrics correlation - so they carry no user data.
  */
 @Injectable()
 export class CorrelationService {
