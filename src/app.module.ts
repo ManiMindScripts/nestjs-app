@@ -99,7 +99,7 @@ import { SnakeCaseNamingStrategy } from './database/naming-strategy';
     // floods are rate-limited before any JWT verification work happens.
     // UserThrottlerGuard runs after authentication and keys authenticated
     // buckets by user id (it skips requests without a user, which the IP wall
-    // already counted). PermissionsGuard runs last, after req.user is resolved.
+    // already counted). PermissionsGuard runs last, after req.user is resolved....
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: UserThrottlerGuard },
